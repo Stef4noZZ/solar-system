@@ -16,7 +16,8 @@ MUTED = (145, 164, 188)
 ACCENT = (105, 210, 255)
 SUN_GLOW_SCALE = 1.45
 SUN_MIN_ORBIT_CLEARANCE = 8
-JASON_MISSION_DURATION_DAYS = 259.0
+EARTH_ORBIT_AU = 1.0
+MARS_ORBIT_AU = 1.523679
 
 
 @dataclass(frozen=True)
@@ -164,14 +165,22 @@ TRANSLATIONS = {
     "Jason's mission · Argo": "Αποστολή Ιάσονα · Αργώ",
     "Argo": "Αργώ",
     "Earth to Mars": "Γη προς Άρη",
-    "Start mission": "Έναρξη αποστολής",
+    "Schedule mission": "Προγραμματισμός αποστολής",
     "Pause mission": "Παύση αποστολής",
     "Resume mission": "Συνέχεια αποστολής",
     "Reset mission": "Επαναφορά αποστολής",
     "Mission complete": "Η αποστολή ολοκληρώθηκε",
     "Mission ready": "Η αποστολή είναι έτοιμη",
-    "Estimated trip: 259 days": "Εκτιμώμενο ταξίδι: 259 ημέρες",
-    "Fixed estimate; schematic route": "Σταθερή εκτίμηση· σχηματική διαδρομή",
+    "Waiting for launch window": "Αναμονή παραθύρου εκτόξευσης",
+    "Hohmann transfer": "Μεταφορά Hohmann",
+    "Next launch window": "Επόμενο παράθυρο",
+    "Launch target": "Στόχος",
+    "Mars ~{angle}° ahead": "Άρης ~{angle}° μπροστά",
+    "Alignment gap: {angle}°": "Απόκλιση: {angle}°",
+    "Launch window approaching": "Πλησιάζει το παράθυρο",
+    "Transfer underway": "Η μεταφορά είναι σε εξέλιξη",
+    "Argo has reached Mars orbit": "Η Αργώ έφτασε σε τροχιά γύρω από τον Άρη",
+    "Idealized Hohmann transfer": "Ιδανική τροχιά Hohmann",
     "Departure": "Αναχώρηση",
     "Cruise": "Ταξίδι",
     "Mars approach": "Προσέγγιση Άρη",
@@ -382,7 +391,9 @@ class SolarSystemApp:
         self.show_mission = True
         self.mission_started = False
         self.mission_active = False
+        self.mission_launched = False
         self.mission_elapsed_days = 0.0
+        self.mission_launch_wait_days = 0.0
         self.mission_earth_phase = 0.0
         self.mission_mars_arrival_phase = 0.0
         self.mission_control_rects: dict[str, pygame.Rect] = {}
@@ -532,20 +543,124 @@ class SolarSystemApp:
     def _advance_mission(self, simulated_days: float) -> None:
         if not self.mission_active:
             return
+        simulated_days = max(0.0, simulated_days)
+        if not self.mission_launched:
+            wait_days = min(self.mission_launch_wait_days, simulated_days)
+            self.mission_launch_wait_days -= wait_days
+            simulated_days -= wait_days
+            if self.mission_launch_wait_days > 1e-9:
+                return
+            self.mission_launch_wait_days = 0.0
+            self.mission_launched = True
         self.mission_elapsed_days = min(
-            JASON_MISSION_DURATION_DAYS,
+            self._mission_transfer_days(),
             self.mission_elapsed_days + simulated_days,
         )
-        if self.mission_elapsed_days >= JASON_MISSION_DURATION_DAYS:
+        if self.mission_elapsed_days >= self._mission_transfer_days():
             self.mission_active = False
+
+    @staticmethod
+    def _mission_transfer_days() -> float:
+        transfer_semimajor_axis_au = (EARTH_ORBIT_AU + MARS_ORBIT_AU) / 2
+        return (
+            EARTH_YEAR_DAYS
+            * transfer_semimajor_axis_au**1.5
+            / 2
+        )
+
+    @classmethod
+    def _mission_required_phase(cls) -> float:
+        mars_angular_speed = math.tau / PLANETS[3].orbital_period_days
+        return (
+            math.pi - mars_angular_speed * cls._mission_transfer_days()
+        ) % math.tau
+
+    @classmethod
+    def _mission_required_phase_degrees(cls) -> float:
+        return math.degrees(cls._mission_required_phase())
+
+    def _mission_days_to_launch_window(self) -> float:
+        earth_angular_speed = math.tau / PLANETS[2].orbital_period_days
+        mars_angular_speed = math.tau / PLANETS[3].orbital_period_days
+        current_phase_difference = (self.phases[3] - self.phases[2]) % math.tau
+        phase_to_cover = (
+            current_phase_difference - self._mission_required_phase()
+        ) % math.tau
+        return phase_to_cover / (earth_angular_speed - mars_angular_speed)
+
+    def _mission_alignment_gap_degrees(self) -> float:
+        target_phase = (
+            self.phases[2] + self._mission_required_phase()
+        ) % math.tau
+        signed_gap = (
+            target_phase - self.phases[3] + math.pi
+        ) % math.tau - math.pi
+        return abs(math.degrees(signed_gap))
+
+    def _mission_alignment_target_position(
+        self, solar_x: float, solar_y: float, scale: float
+    ) -> tuple[int, int]:
+        target_phase = (
+            self.phases[2] + self._mission_required_phase()
+        ) % math.tau
+        mars_orbit_radius = PLANETS[3].orbit_radius * scale
+        return (
+            round(solar_x + math.cos(target_phase) * mars_orbit_radius),
+            round(solar_y + math.sin(target_phase) * mars_orbit_radius),
+        )
+
+    def _draw_mission_alignment(
+        self,
+        surface: pygame.Surface,
+        solar_x: float,
+        solar_y: float,
+        scale: float,
+    ) -> None:
+        target_x, target_y = self._mission_alignment_target_position(
+            solar_x, solar_y, scale
+        )
+        target_radius = PLANETS[3].orbit_radius * scale
+        segment_count = 12
+        for segment in range(segment_count):
+            if segment % 2:
+                continue
+            start_fraction = segment / segment_count
+            end_fraction = (segment + 1) / segment_count
+            start = (
+                round(solar_x + (target_x - solar_x) * start_fraction),
+                round(solar_y + (target_y - solar_y) * start_fraction),
+            )
+            end = (
+                round(solar_x + (target_x - solar_x) * end_fraction),
+                round(solar_y + (target_y - solar_y) * end_fraction),
+            )
+            pygame.draw.line(surface, (78, 113, 147), start, end, 1)
+
+        if target_radius > 0:
+            pygame.draw.circle(
+                surface,
+                (255, 196, 112),
+                (target_x, target_y),
+                max(7, round(PLANETS[3].radius * max(scale, 0.72)) + 5),
+                2,
+            )
+
+    def _mission_launch_countdown_days(self) -> float:
+        if self.mission_started and not self.mission_launched:
+            return self.mission_launch_wait_days
+        return self._mission_days_to_launch_window()
 
     def _mission_progress(self) -> float:
         return min(
             1.0,
-            self.mission_elapsed_days / JASON_MISSION_DURATION_DAYS,
+            self.mission_elapsed_days / self._mission_transfer_days(),
         )
 
     def _mission_stage(self) -> str:
+        if self.mission_started and not self.mission_launched:
+            return "Waiting for launch window"
+        if not self.mission_started:
+            return "Mission ready"
         progress = self._mission_progress()
         if progress >= 1.0:
             return "Mission complete"
@@ -559,23 +674,37 @@ class SolarSystemApp:
         if self.mission_active:
             self.mission_active = False
             return
-        if self.mission_elapsed_days >= JASON_MISSION_DURATION_DAYS:
+        if self.mission_elapsed_days >= self._mission_transfer_days():
             self._reset_mission()
         if not self.mission_started:
-            self.mission_earth_phase = self.phases[2]
+            self.mission_launch_wait_days = self._mission_days_to_launch_window()
+            self.mission_earth_phase = (
+                self.phases[2]
+                + math.tau
+                * self.mission_launch_wait_days
+                / PLANETS[2].orbital_period_days
+            ) % math.tau
             self.mission_mars_arrival_phase = (
                 self.phases[3]
                 + math.tau
-                * JASON_MISSION_DURATION_DAYS
+                * (
+                    self.mission_launch_wait_days
+                    + self._mission_transfer_days()
+                )
                 / PLANETS[3].orbital_period_days
             ) % math.tau
             self.mission_started = True
+            self.mission_launched = self.mission_launch_wait_days <= 1e-9
+            if self.mission_launched:
+                self.mission_launch_wait_days = 0.0
         self.mission_active = True
 
     def _reset_mission(self) -> None:
         self.mission_started = False
         self.mission_active = False
+        self.mission_launched = False
         self.mission_elapsed_days = 0.0
+        self.mission_launch_wait_days = 0.0
         self.mission_earth_phase = 0.0
         self.mission_mars_arrival_phase = 0.0
 
@@ -584,45 +713,42 @@ class SolarSystemApp:
     ) -> list[tuple[int, int]]:
         earth = PLANETS[2]
         mars = PLANETS[3]
-        start = (
-            solar_x + earth.orbit_radius * math.cos(self.mission_earth_phase) * scale,
-            solar_y + earth.orbit_radius * math.sin(self.mission_earth_phase) * scale,
-        )
-        destination = (
-            solar_x + mars.orbit_radius * math.cos(self.mission_mars_arrival_phase) * scale,
-            solar_y + mars.orbit_radius * math.sin(self.mission_mars_arrival_phase) * scale,
-        )
-        chord_x = destination[0] - start[0]
-        chord_y = destination[1] - start[1]
-        chord_length = math.hypot(chord_x, chord_y)
-        if chord_length == 0:
-            return [tuple(map(round, start))]
-        normal = (-chord_y / chord_length, chord_x / chord_length)
-        arc = min(chord_length * 0.22, 34 * scale)
-        control_one = (
-            start[0] + chord_x / 3 + normal[0] * arc,
-            start[1] + chord_y / 3 + normal[1] * arc,
-        )
-        control_two = (
-            start[0] + chord_x * 2 / 3 + normal[0] * arc,
-            start[1] + chord_y * 2 / 3 + normal[1] * arc,
+        transfer_semimajor_axis = (earth.orbit_radius + mars.orbit_radius) / 2
+        transfer_eccentricity = (
+            mars.orbit_radius - earth.orbit_radius
+        ) / (mars.orbit_radius + earth.orbit_radius)
+        semi_latus_rectum = transfer_semimajor_axis * (
+            1 - transfer_eccentricity**2
         )
         points = []
         for step in range(41):
-            t = step / 40
-            inverse_t = 1 - t
-            x = (
-                inverse_t**3 * start[0]
-                + 3 * inverse_t**2 * t * control_one[0]
-                + 3 * inverse_t * t**2 * control_two[0]
-                + t**3 * destination[0]
+            mean_anomaly = math.pi * step / 40
+            eccentric_anomaly = mean_anomaly
+            for _ in range(5):
+                eccentric_anomaly -= (
+                    eccentric_anomaly
+                    - transfer_eccentricity * math.sin(eccentric_anomaly)
+                    - mean_anomaly
+                ) / (
+                    1
+                    - transfer_eccentricity
+                    * math.cos(eccentric_anomaly)
+                )
+            true_anomaly = 2 * math.atan2(
+                math.sqrt(1 + transfer_eccentricity)
+                * math.sin(eccentric_anomaly / 2),
+                math.sqrt(1 - transfer_eccentricity)
+                * math.cos(eccentric_anomaly / 2),
             )
-            y = (
-                inverse_t**3 * start[1]
-                + 3 * inverse_t**2 * t * control_one[1]
-                + 3 * inverse_t * t**2 * control_two[1]
-                + t**3 * destination[1]
+            orbital_radius = semi_latus_rectum / (
+                1 + transfer_eccentricity * math.cos(true_anomaly)
             )
+            angle = self.mission_earth_phase + true_anomaly
+            if step == 40:
+                orbital_radius = mars.orbit_radius
+                angle = self.mission_mars_arrival_phase
+            x = solar_x + orbital_radius * math.cos(angle) * scale
+            y = solar_y + orbital_radius * math.sin(angle) * scale
             points.append((round(x), round(y)))
         return points
 
@@ -857,19 +983,57 @@ class SolarSystemApp:
                 )
                 y += row_spacing
                 self._draw_text(
-                    "Estimated trip: 259 days",
+                    f"{self._tr('Hohmann transfer')}: "
+                    f"{self._mission_transfer_days():.0f} "
+                    f"{self._tr('days')}",
                     (24, y + 3),
                     MUTED,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                if self._mission_progress() >= 1.0:
+                    alignment_text = "Argo has reached Mars orbit"
+                    alignment_color = ACCENT
+                elif self.mission_launched:
+                    alignment_text = "Transfer underway"
+                    alignment_color = ACCENT
+                else:
+                    alignment_gap = round(
+                        self._mission_alignment_gap_degrees()
+                    )
+                    if alignment_gap <= 5:
+                        alignment_text = "Launch window approaching"
+                        alignment_color = ACCENT
+                    else:
+                        alignment_text = "Alignment gap: {angle}°"
+                        alignment_color = MUTED
+                self._draw_text(
+                    self._tr(alignment_text).format(
+                        angle=round(self._mission_alignment_gap_degrees())
+                    ),
+                    (24, y + 3),
+                    alignment_color,
                     self.tiny_font,
                 )
                 y += row_spacing
                 self._draw_text(
-                    "Fixed estimate; schematic route",
+                    f"{self._tr('Launch target')}: "
+                    f"{self._tr('Mars ~{angle}° ahead').format(angle=round(self._mission_required_phase_degrees()))}",
                     (24, y + 3),
                     MUTED,
                     self.tiny_font,
                 )
                 y += row_spacing
+                if not self.mission_launched:
+                    self._draw_text(
+                        f"{self._tr('Next launch window')}: "
+                        f"{self._mission_launch_countdown_days():.0f} "
+                        f"{self._tr('days')}",
+                        (24, y + 3),
+                        MUTED,
+                        self.tiny_font,
+                    )
+                    y += row_spacing
                 self._draw_text(
                     f"{self._tr('Stage')}: {self._tr(self._mission_stage())}",
                     (24, y + 3),
@@ -881,7 +1045,7 @@ class SolarSystemApp:
                 self._draw_text(
                     f"{self._tr('Mission time')}: "
                     f"{self.mission_elapsed_days:.0f} / "
-                    f"{JASON_MISSION_DURATION_DAYS:.0f} "
+                    f"{self._mission_transfer_days():.0f} "
                     f"{self._tr('days')} ({progress_percent}%)",
                     (24, y + 3),
                     MUTED,
@@ -927,8 +1091,8 @@ class SolarSystemApp:
                     if self.mission_active
                     else "Resume mission"
                     if self.mission_started
-                    and self.mission_elapsed_days < JASON_MISSION_DURATION_DAYS
-                    else "Start mission"
+                    and self.mission_elapsed_days < self._mission_transfer_days()
+                    else "Schedule mission"
                 )
                 pygame.draw.rect(
                     self.screen,
@@ -1458,46 +1622,88 @@ class SolarSystemApp:
                 )
                 self.hit_targets.append((x, y, radius + 7, body.identifier))
 
-        if self.show_mission and self.mission_started:
-            route = self._mission_route_points(solar_x, solar_y, scale)
-            pygame.draw.lines(scene_surface, (61, 121, 165), False, route, 2)
-            progress = self._mission_progress()
-            route_position = progress * (len(route) - 1)
-            route_index = min(int(route_position), len(route) - 2)
-            interpolation = route_position - route_index
-            ship_x = route[route_index][0] + (
-                route[route_index + 1][0] - route[route_index][0]
-            ) * interpolation
-            ship_y = route[route_index][1] + (
-                route[route_index + 1][1] - route[route_index][1]
-            ) * interpolation
-            tangent_x = route[route_index + 1][0] - route[route_index][0]
-            tangent_y = route[route_index + 1][1] - route[route_index][1]
-            tangent_length = max(1.0, math.hypot(tangent_x, tangent_y))
-            forward = (tangent_x / tangent_length, tangent_y / tangent_length)
-            side = (-forward[1], forward[0])
-            ship_size = 7
-            ship_points = [
-                (
-                    round(ship_x + forward[0] * ship_size),
-                    round(ship_y + forward[1] * ship_size),
-                ),
-                (
-                    round(ship_x - forward[0] * ship_size * 0.7 + side[0] * ship_size * 0.55),
-                    round(ship_y - forward[1] * ship_size * 0.7 + side[1] * ship_size * 0.55),
-                ),
-                (
-                    round(ship_x - forward[0] * ship_size * 0.7 - side[0] * ship_size * 0.55),
-                    round(ship_y - forward[1] * ship_size * 0.7 - side[1] * ship_size * 0.55),
-                ),
-            ]
-            pygame.draw.polygon(scene_surface, ACCENT, ship_points)
-            pygame.draw.circle(
-                scene_surface,
-                (226, 242, 255),
-                (round(ship_x), round(ship_y)),
-                2,
+        show_alignment = (
+            self.show_mission
+            and self.sidebar_category == "mission"
+            and not self.mission_launched
+            and self.show_orbits
+        )
+        if show_alignment:
+            self._draw_mission_alignment(
+                scene_surface, solar_x, solar_y, scale
             )
+
+        if self.show_mission and self.mission_started and self.mission_launched:
+            route = self._mission_route_points(solar_x, solar_y, scale)
+            if self.show_orbits:
+                pygame.draw.lines(
+                    scene_surface, (61, 121, 165), False, route, 2
+                )
+            progress = self._mission_progress()
+            if progress >= 1.0:
+                if self.show_orbits:
+                    mars_x = (
+                        solar_x
+                        + math.cos(self.phases[3])
+                        * PLANETS[3].orbit_radius
+                        * scale
+                    )
+                    mars_y = (
+                        solar_y
+                        + math.sin(self.phases[3])
+                        * PLANETS[3].orbit_radius
+                        * scale
+                    )
+                    orbit_width = max(24, round(PLANETS[3].radius * 4 * scale))
+                    orbit_height = max(12, round(PLANETS[3].radius * 2 * scale))
+                    pygame.draw.ellipse(
+                        scene_surface,
+                        (61, 121, 165),
+                        pygame.Rect(
+                            round(mars_x - orbit_width / 2),
+                            round(mars_y - orbit_height / 2),
+                            orbit_width,
+                            orbit_height,
+                        ),
+                        1,
+                    )
+            else:
+                route_position = progress * (len(route) - 1)
+                route_index = min(int(route_position), len(route) - 2)
+                interpolation = route_position - route_index
+                ship_x = route[route_index][0] + (
+                    route[route_index + 1][0] - route[route_index][0]
+                ) * interpolation
+                ship_y = route[route_index][1] + (
+                    route[route_index + 1][1] - route[route_index][1]
+                ) * interpolation
+                tangent_x = route[route_index + 1][0] - route[route_index][0]
+                tangent_y = route[route_index + 1][1] - route[route_index][1]
+                tangent_length = max(1.0, math.hypot(tangent_x, tangent_y))
+                forward = (tangent_x / tangent_length, tangent_y / tangent_length)
+                side = (-forward[1], forward[0])
+                ship_size = 7
+                ship_points = [
+                    (
+                        round(ship_x + forward[0] * ship_size),
+                        round(ship_y + forward[1] * ship_size),
+                    ),
+                    (
+                        round(ship_x - forward[0] * ship_size * 0.7 + side[0] * ship_size * 0.55),
+                        round(ship_y - forward[1] * ship_size * 0.7 + side[1] * ship_size * 0.55),
+                    ),
+                    (
+                        round(ship_x - forward[0] * ship_size * 0.7 - side[0] * ship_size * 0.55),
+                        round(ship_y - forward[1] * ship_size * 0.7 - side[1] * ship_size * 0.55),
+                    ),
+                ]
+                pygame.draw.polygon(scene_surface, ACCENT, ship_points)
+                pygame.draw.circle(
+                    scene_surface,
+                    (226, 242, 255),
+                    (round(ship_x), round(ship_y)),
+                    2,
+                )
 
         self.screen.blit(scene_surface, scene.topleft)
         self._draw_text(

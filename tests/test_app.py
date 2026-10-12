@@ -192,9 +192,14 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._draw()
         self.assertIn("toggle", self.app.mission_control_rects)
 
+        self.app.phases[3] = (
+            self.app.phases[2] + self.app._mission_required_phase()
+        ) % math.tau
         self.app._handle_click(self.app.mission_control_rects["toggle"].center)
         self.assertTrue(self.app.mission_started)
         self.assertTrue(self.app.mission_active)
+        self.assertTrue(self.app.mission_launched)
+        self.assertAlmostEqual(self.app.mission_launch_wait_days, 0.0)
         self.assertEqual(self.app._mission_progress(), 0.0)
         self.assertEqual(self.app._mission_stage(), "Departure")
         start_earth_phase = self.app.mission_earth_phase
@@ -208,7 +213,10 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app.time_scale_index = 1
         self.app._advance_orbits(2.0)
         self.assertEqual(self.app.mission_elapsed_days, 60.0)
-        self.assertAlmostEqual(self.app._mission_progress(), 60 / 259)
+        self.assertAlmostEqual(
+            self.app._mission_progress(),
+            60 / self.app._mission_transfer_days(),
+        )
         self.assertEqual(self.app._mission_stage(), "Cruise")
         self.app._draw()
         self.app._handle_click(self.app.mission_control_rects["toggle"].center)
@@ -220,7 +228,10 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._handle_click(self.app.mission_control_rects["toggle"].center)
         self.assertTrue(self.app.mission_active)
         self.app._advance_orbits(7.0)
-        self.assertEqual(self.app.mission_elapsed_days, 259.0)
+        self.assertAlmostEqual(
+            self.app.mission_elapsed_days,
+            self.app._mission_transfer_days(),
+        )
         self.assertFalse(self.app.mission_active)
         self.assertEqual(self.app._mission_progress(), 1.0)
         self.assertEqual(self.app._mission_stage(), "Mission complete")
@@ -230,16 +241,203 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._handle_click(self.app.mission_control_rects["reset"].center)
         self.assertFalse(self.app.mission_started)
         self.assertEqual(self.app.mission_elapsed_days, 0.0)
+        self.assertFalse(self.app.mission_launched)
+
+    def test_hohmann_mission_waits_for_launch_window_and_predicts_arrival(self) -> None:
+        transfer_days = self.app._mission_transfer_days()
+        self.assertAlmostEqual(transfer_days, 259.0, delta=1.0)
+        self.assertAlmostEqual(
+            self.app._mission_required_phase_degrees(),
+            44.0,
+            delta=1.0,
+        )
+        wait_days = self.app._mission_days_to_launch_window()
+        self.assertGreater(wait_days, 0.0)
+
+        earth_phase_now = self.app.phases[2]
+        mars_phase_now = self.app.phases[3]
+        self.app._toggle_mission()
+
+        self.assertFalse(self.app.mission_launched)
+        self.assertEqual(self.app._mission_stage(), "Waiting for launch window")
+        self.assertAlmostEqual(self.app.mission_launch_wait_days, wait_days)
+        earth_phase_at_launch = (
+            earth_phase_now
+            + math.tau * wait_days / PLANETS[2].orbital_period_days
+        ) % math.tau
+        mars_phase_at_arrival = (
+            mars_phase_now
+            + math.tau
+            * (wait_days + transfer_days)
+            / PLANETS[3].orbital_period_days
+        ) % math.tau
+        self.assertAlmostEqual(
+            (mars_phase_at_arrival - earth_phase_at_launch) % math.tau,
+            math.pi,
+            places=7,
+        )
+
+        self.app._advance_mission(wait_days - 1)
+        self.assertFalse(self.app.mission_launched)
+        self.assertAlmostEqual(self.app.mission_launch_wait_days, 1.0)
+        self.app._advance_mission(1.0)
+        self.assertTrue(self.app.mission_launched)
+        self.assertEqual(self.app.mission_elapsed_days, 0.0)
+        self.assertEqual(self.app._mission_stage(), "Departure")
+
+    def test_hohmann_route_starts_and_ends_on_planet_orbits(self) -> None:
+        self.app.mission_earth_phase = 0.4
+        route = self.app._mission_route_points(400, 300, 1.0)
+
+        self.assertEqual(len(route), 41)
+        self.assertAlmostEqual(
+            math.dist(route[0], (400, 300)),
+            PLANETS[2].orbit_radius,
+            delta=1.0,
+        )
+        self.assertAlmostEqual(
+            math.dist(route[-1], (400, 300)),
+            PLANETS[3].orbit_radius,
+            delta=1.0,
+        )
+        self.assertGreater(
+            math.dist(route[20], (400, 300)),
+            math.dist(route[0], (400, 300)),
+        )
+
+    def test_mission_alignment_gap_and_target_marker_follow_planet_phases(self) -> None:
+        required_phase = self.app._mission_required_phase()
+        self.app.phases[2] = 0.7
+        self.app.phases[3] = (self.app.phases[2] + required_phase + math.radians(12)) % math.tau
+        self.assertAlmostEqual(self.app._mission_alignment_gap_degrees(), 12.0)
+
+        surface = pygame.Surface((800, 600))
+        target_position = self.app._mission_alignment_target_position(
+            400, 300, 1.0
+        )
+        with patch("pygame.draw.circle", wraps=pygame.draw.circle) as draw_circle:
+            self.app._draw_mission_alignment(surface, 400, 300, 1.0)
+
+        self.assertTrue(
+            any(
+                call.args[1] == (255, 196, 112)
+                and call.args[2] == target_position
+                for call in draw_circle.call_args_list
+            )
+        )
+
+        self.app.phases[3] = (
+            self.app.phases[2] + required_phase
+        ) % math.tau
+        self.assertAlmostEqual(self.app._mission_alignment_gap_degrees(), 0.0)
+
+    def test_argo_disappears_on_arrival_and_arrival_is_shown(self) -> None:
+        self.app.sidebar_category = "mission"
+        self.app.mission_started = True
+        self.app.mission_launched = True
+        self.app.mission_elapsed_days = self.app._mission_transfer_days()
+        self.app.mission_active = False
+
+        rendered_text: list[str] = []
+        original_draw_text = self.app._draw_text
+
+        def capture_text(
+            text: str,
+            position: tuple[int, int],
+            color: tuple[int, int, int] = (232, 240, 251),
+            font: pygame.font.Font | None = None,
+        ) -> None:
+            rendered_text.append(text)
+            original_draw_text(text, position, color, font)
+
+        self.app._draw_text = capture_text
+        with patch("pygame.draw.polygon", wraps=pygame.draw.polygon) as draw_polygon:
+            self.app._draw()
+        self.app._draw_text = original_draw_text
+
+        self.assertEqual(draw_polygon.call_count, 0)
+        self.assertIn("Argo has reached Mars orbit", rendered_text)
+        self.assertEqual(self.app._mission_stage(), "Mission complete")
+
+    def test_mission_orbit_overlays_follow_orbits_toggle(self) -> None:
+        self.app.sidebar_category = "mission"
+        self.app.mission_started = True
+
+        with patch.object(
+            self.app,
+            "_draw_mission_alignment",
+            wraps=self.app._draw_mission_alignment,
+        ) as draw_alignment:
+            self.app.show_orbits = False
+            self.app._draw()
+            draw_alignment.assert_not_called()
+
+            self.app.show_orbits = True
+            self.app._draw()
+            draw_alignment.assert_called_once()
+
+        self.app.mission_launched = True
+        self.app.mission_elapsed_days = 60.0
+        with (
+            patch("pygame.draw.lines", wraps=pygame.draw.lines) as draw_lines,
+            patch("pygame.draw.polygon", wraps=pygame.draw.polygon) as draw_ship,
+        ):
+            self.app.show_orbits = False
+            self.app._draw()
+            draw_lines.assert_not_called()
+            self.assertEqual(draw_ship.call_count, 1)
+
+            self.app.show_orbits = True
+            self.app._draw()
+            self.assertGreater(draw_lines.call_count, 0)
+            self.assertEqual(draw_ship.call_count, 2)
+
+        self.app.mission_elapsed_days = self.app._mission_transfer_days()
+        with patch(
+            "pygame.draw.ellipse", wraps=pygame.draw.ellipse
+        ) as draw_ellipse:
+            self.app.show_orbits = False
+            self.app._draw()
+            self.assertFalse(
+                any(
+                    call.args[1] == (61, 121, 165)
+                    for call in draw_ellipse.call_args_list
+                )
+            )
+
+            self.app.show_orbits = True
+            self.app._draw()
+            self.assertTrue(
+                any(
+                    call.args[1] == (61, 121, 165)
+                    for call in draw_ellipse.call_args_list
+                )
+            )
 
     def test_mission_stage_and_progress_are_localized(self) -> None:
+        self.app.mission_started = True
+        self.app.mission_launched = True
         self.app.mission_elapsed_days = 230.0
         self.assertEqual(self.app._mission_stage(), "Mars approach")
-        self.assertAlmostEqual(self.app._mission_progress(), 230 / 259)
+        self.assertAlmostEqual(
+            self.app._mission_progress(),
+            230 / self.app._mission_transfer_days(),
+        )
 
         self.app.language = "el"
         self.assertEqual(self.app._tr(self.app._mission_stage()), "Προσέγγιση Άρη")
-        self.assertEqual(self.app._tr("Fixed estimate; schematic route"),
-                         "Σταθερή εκτίμηση· σχηματική διαδρομή")
+        self.assertEqual(
+            self.app._tr("Waiting for launch window"),
+            "Αναμονή παραθύρου εκτόξευσης",
+        )
+        self.assertEqual(
+            self.app._tr("Mars ~{angle}° ahead").format(angle=44),
+            "Άρης ~44° μπροστά",
+        )
+        self.assertEqual(
+            self.app._tr("Argo has reached Mars orbit"),
+            "Η Αργώ έφτασε σε τροχιά γύρω από τον Άρη",
+        )
 
     def test_mission_visibility_hides_route_and_controls(self) -> None:
         self.app._draw()
@@ -254,6 +452,7 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app.sidebar_category = "mission"
         self.app.mission_started = True
         self.app.mission_active = True
+        self.app.mission_launched = True
         self.app._advance_orbits(1.0)
         self.assertEqual(self.app.mission_elapsed_days, 1.0)
         with patch("pygame.draw.lines", wraps=pygame.draw.lines) as draw_lines:
@@ -311,7 +510,7 @@ class SolarSystemAppTests(unittest.TestCase):
                         f"{text!r} exceeds sidebar in {language}",
                     )
                 for label in (
-                    "Start mission",
+                    "Schedule mission",
                     "Pause mission",
                     "Resume mission",
                     "Reset mission",
