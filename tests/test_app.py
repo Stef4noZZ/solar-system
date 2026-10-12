@@ -12,6 +12,8 @@ from solar_system.app import (
     ASTEROID_BELT,
     EARTH_YEAR_DAYS,
     MOONS,
+    MOONS_BY_ID,
+    MOON_TRANSFER_ESTIMATE_DAYS,
     PLANETS,
     SMALL_BODIES,
     SIMULATION_TIME_SCALES,
@@ -202,13 +204,18 @@ class SolarSystemAppTests(unittest.TestCase):
         self.assertAlmostEqual(self.app.mission_launch_wait_days, 0.0)
         self.assertEqual(self.app._mission_progress(), 0.0)
         self.assertEqual(self.app._mission_stage(), "Departure")
-        start_earth_phase = self.app.mission_earth_phase
-        start_mars_arrival_phase = self.app.mission_mars_arrival_phase
+        start_origin_phase = self.app.mission_origin_phase
+        start_destination_arrival_phase = (
+            self.app.mission_destination_arrival_phase
+        )
         route = self.app._mission_route_points(0.0, 0.0, 1.0)
         self.assertEqual(len(route), 41)
         self.assertNotEqual(route[0], route[-1])
-        self.assertEqual(self.app.mission_earth_phase, start_earth_phase)
-        self.assertEqual(self.app.mission_mars_arrival_phase, start_mars_arrival_phase)
+        self.assertEqual(self.app.mission_origin_phase, start_origin_phase)
+        self.assertEqual(
+            self.app.mission_destination_arrival_phase,
+            start_destination_arrival_phase,
+        )
 
         self.app.time_scale_index = 1
         self.app._advance_orbits(2.0)
@@ -254,16 +261,18 @@ class SolarSystemAppTests(unittest.TestCase):
         wait_days = self.app._mission_days_to_launch_window()
         self.assertGreater(wait_days, 0.0)
 
-        earth_phase_now = self.app.phases[2]
+        origin_phase_now = self.app.phases[self.app.mission_origin]
         mars_phase_now = self.app.phases[3]
         self.app._toggle_mission()
 
         self.assertFalse(self.app.mission_launched)
         self.assertEqual(self.app._mission_stage(), "Waiting for launch window")
         self.assertAlmostEqual(self.app.mission_launch_wait_days, wait_days)
-        earth_phase_at_launch = (
-            earth_phase_now
-            + math.tau * wait_days / PLANETS[2].orbital_period_days
+        origin_phase_at_launch = (
+            origin_phase_now
+            + math.tau
+            * wait_days
+            / PLANETS[self.app.mission_origin].orbital_period_days
         ) % math.tau
         mars_phase_at_arrival = (
             mars_phase_now
@@ -272,7 +281,7 @@ class SolarSystemAppTests(unittest.TestCase):
             / PLANETS[3].orbital_period_days
         ) % math.tau
         self.assertAlmostEqual(
-            (mars_phase_at_arrival - earth_phase_at_launch) % math.tau,
+            (mars_phase_at_arrival - origin_phase_at_launch) % math.tau,
             math.pi,
             places=7,
         )
@@ -285,14 +294,221 @@ class SolarSystemAppTests(unittest.TestCase):
         self.assertEqual(self.app.mission_elapsed_days, 0.0)
         self.assertEqual(self.app._mission_stage(), "Departure")
 
+    def test_planet_destinations_use_historical_hohmann_time_estimates(self) -> None:
+        self.app.mission_origin = 2
+        self.app.mission_destination = 1
+        self.assertAlmostEqual(self.app._mission_transfer_days(), 146, delta=2)
+        self.app.mission_destination = 4
+        self.assertAlmostEqual(
+            self.app._mission_transfer_days() / EARTH_YEAR_DAYS,
+            2.73,
+            delta=0.03,
+        )
+
+    def test_hohmann_launch_windows_align_each_planet_at_arrival(self) -> None:
+        for destination in self.app._mission_available_destinations():
+            if not isinstance(destination, int):
+                continue
+            with self.subTest(destination=PLANETS[destination].name):
+                self.app.mission_destination = destination
+                self.app.phases[self.app.mission_origin] = 0.8
+                self.app.phases[destination] = 2.1
+                wait_days = self.app._mission_days_to_launch_window()
+                transfer_days = self.app._mission_transfer_days()
+                launch_phase = (
+                    self.app.phases[self.app.mission_origin]
+                    + math.tau
+                    * wait_days
+                    / PLANETS[self.app.mission_origin].orbital_period_days
+                ) % math.tau
+                arrival_phase = (
+                    self.app.phases[destination]
+                    + math.tau
+                    * (wait_days + transfer_days)
+                    / PLANETS[destination].orbital_period_days
+                ) % math.tau
+                self.assertAlmostEqual(
+                    (arrival_phase - launch_phase) % math.tau,
+                    math.pi,
+                    places=6,
+                )
+
+    def test_hohmann_transfers_support_every_distinct_planet_pair(self) -> None:
+        for origin in range(len(PLANETS)):
+            for destination in range(len(PLANETS)):
+                if origin == destination:
+                    continue
+                with self.subTest(
+                    origin=PLANETS[origin].name,
+                    destination=PLANETS[destination].name,
+                ):
+                    self.app.mission_origin = origin
+                    self.app.mission_destination = destination
+                    self.app.phases[origin] = 0.8
+                    self.app.phases[destination] = 2.1
+                    wait_days = self.app._mission_days_to_launch_window()
+                    transfer_days = self.app._mission_transfer_days()
+                    launch_phase = (
+                        self.app.phases[origin]
+                        + math.tau
+                        * wait_days
+                        / PLANETS[origin].orbital_period_days
+                    ) % math.tau
+                    arrival_phase = (
+                        self.app.phases[destination]
+                        + math.tau
+                        * (wait_days + transfer_days)
+                        / PLANETS[destination].orbital_period_days
+                    ) % math.tau
+                    self.assertGreater(transfer_days, 0.0)
+                    self.assertAlmostEqual(
+                        (arrival_phase - launch_phase) % math.tau,
+                        math.pi,
+                        places=6,
+                    )
+
+    def test_earth_moon_mission_uses_three_day_direct_estimate(self) -> None:
+        self.app.mission_destination = "moon"
+        moon_phase = self.app.moon_phases["moon"]
+        self.assertEqual(
+            self.app._mission_transfer_days(),
+            MOON_TRANSFER_ESTIMATE_DAYS,
+        )
+        self.assertFalse(self.app._mission_has_launch_window())
+        self.assertEqual(self.app._mission_days_to_launch_window(), 0.0)
+
+        self.app._toggle_mission()
+        self.assertTrue(self.app.mission_launched)
+        route = self.app._mission_route_points(400, 300, 1.0)
+        self.assertEqual(len(route), 41)
+        expected_earth_start = (
+            round(400 + math.cos(self.app.mission_origin_phase) * PLANETS[2].orbit_radius),
+            round(300 + math.sin(self.app.mission_origin_phase) * PLANETS[2].orbit_radius),
+        )
+        self.assertEqual(route[0], expected_earth_start)
+        expected_moon_phase = (
+            moon_phase
+            + math.tau
+            * MOON_TRANSFER_ESTIMATE_DAYS
+            / MOONS[0].orbital_period_days
+        ) % math.tau
+        moon_center = (
+            400 + math.cos(self.app.mission_destination_arrival_phase) * PLANETS[2].orbit_radius,
+            300 + math.sin(self.app.mission_destination_arrival_phase) * PLANETS[2].orbit_radius,
+        )
+        expected_arrival = (
+            round(moon_center[0] + math.cos(expected_moon_phase) * MOONS[0].visual_orbit_radius),
+            round(moon_center[1] + math.sin(expected_moon_phase) * MOONS[0].visual_orbit_radius),
+        )
+        self.assertEqual(route[-1], expected_arrival)
+
+        self.app._advance_mission(MOON_TRANSFER_ESTIMATE_DAYS)
+        self.assertEqual(self.app._mission_progress(), 1.0)
+        self.assertEqual(self.app._mission_stage(), "Mission complete")
+
+    def test_moon_destination_uses_host_transfer_with_schematic_rendezvous(self) -> None:
+        self.app.mission_destination = "europa"
+        self.assertAlmostEqual(
+            self.app._mission_transfer_days(),
+            997,
+            delta=8,
+        )
+        self.assertTrue(self.app._mission_has_launch_window())
+        self.assertEqual(
+            self.app._mission_destination_planet_index(),
+            MOONS_BY_ID["europa"].planet_index,
+        )
+        self.app._toggle_mission()
+        route = self.app._mission_route_points(400, 300, 1.0)
+        self.assertEqual(len(route), 41)
+        self.assertGreater(route[-1][0], 0)
+
+    def test_origin_planet_can_make_a_local_schematic_moon_transfer(self) -> None:
+        self.app.mission_origin = 4
+        self.app.mission_destination = "europa"
+        self.assertTrue(self.app._mission_is_local_moon())
+        self.assertFalse(self.app._mission_has_launch_window())
+        self.assertEqual(
+            self.app._mission_transfer_days(),
+            MOON_TRANSFER_ESTIMATE_DAYS,
+        )
+        self.app._toggle_mission()
+        route = self.app._mission_route_points(400, 300, 1.0)
+        self.assertEqual(len(route), 41)
+        self.assertEqual(
+            round(math.dist(route[0], (400, 300))),
+            PLANETS[4].orbit_radius,
+        )
+
+    def test_mission_destination_selector_cycles_and_locks_until_reset(self) -> None:
+        self.app.sidebar_category = "mission"
+        self.app.selected = 0
+        self.app.focus_mode = True
+        self.app._draw()
+        self.assertEqual(
+            self.app.mission_destination_rects["origin_previous"].left,
+            self.app.mission_destination_rects["destination_previous"].left,
+        )
+        self.assertEqual(
+            self.app.mission_destination_rects["origin_next"].left,
+            self.app.mission_destination_rects["destination_next"].left,
+        )
+        self.app._handle_click(
+            self.app.mission_destination_rects["origin_previous"].center
+        )
+        self.assertEqual(self.app.mission_origin, 1)
+        self.assertEqual(self.app.mission_destination, 3)
+        self.assertEqual(self.app.selected, 0)
+        self.assertTrue(self.app.focus_mode)
+        self.app._draw()
+        self.app._handle_click(
+            self.app.mission_destination_rects["origin_next"].center
+        )
+        self.assertEqual(self.app.mission_origin, 2)
+        self.app._handle_click(
+            self.app.mission_destination_rects["destination_previous"].center
+        )
+        self.assertEqual(self.app.mission_destination, 1)
+        self.app._draw()
+        self.app._handle_click(
+            self.app.mission_destination_rects["destination_next"].center
+        )
+        self.assertEqual(self.app.mission_destination, 3)
+
+        self.app._draw()
+        self.app._handle_click(self.app.mission_control_rects["toggle"].center)
+        self.assertTrue(self.app.mission_started)
+        self.app._draw()
+        self.app._handle_click(
+            self.app.mission_destination_rects["destination_next"].center
+        )
+        self.assertEqual(self.app.mission_destination, 3)
+        self.app._handle_click(
+            self.app.mission_destination_rects["origin_previous"].center
+        )
+        self.assertEqual(self.app.mission_origin, 2)
+
+        self.app._draw()
+        self.app._handle_click(self.app.mission_control_rects["reset"].center)
+        self.assertFalse(self.app.mission_started)
+        self.assertEqual(self.app.mission_destination, 3)
+
+        self.app._handle_click(
+            self.app.mission_destination_rects["origin_next"].center
+        )
+        self.assertEqual(self.app.mission_origin, 3)
+        self.assertEqual(self.app.mission_destination, 2)
+
     def test_hohmann_route_starts_and_ends_on_planet_orbits(self) -> None:
-        self.app.mission_earth_phase = 0.4
+        self.app.mission_origin = 4
+        self.app.mission_destination = 3
+        self.app.mission_origin_phase = 0.4
         route = self.app._mission_route_points(400, 300, 1.0)
 
         self.assertEqual(len(route), 41)
         self.assertAlmostEqual(
             math.dist(route[0], (400, 300)),
-            PLANETS[2].orbit_radius,
+            PLANETS[4].orbit_radius,
             delta=1.0,
         )
         self.assertAlmostEqual(
@@ -300,9 +516,13 @@ class SolarSystemAppTests(unittest.TestCase):
             PLANETS[3].orbit_radius,
             delta=1.0,
         )
+        self.assertLess(
+            math.dist(route[20], (400, 300)),
+            PLANETS[4].orbit_radius,
+        )
         self.assertGreater(
             math.dist(route[20], (400, 300)),
-            math.dist(route[0], (400, 300)),
+            PLANETS[3].orbit_radius,
         )
 
     def test_mission_alignment_gap_and_target_marker_follow_planet_phases(self) -> None:
@@ -331,6 +551,56 @@ class SolarSystemAppTests(unittest.TestCase):
         ) % math.tau
         self.assertAlmostEqual(self.app._mission_alignment_gap_degrees(), 0.0)
 
+    def test_alignment_indicators_appear_only_after_scheduling_mission(self) -> None:
+        self.app.sidebar_category = "mission"
+        self.app._draw()
+        rendered_text: list[str] = []
+        original_draw_text = self.app._draw_text
+
+        def capture_text(
+            text: str,
+            position: tuple[int, int],
+            color: tuple[int, int, int] = (232, 240, 251),
+            font: pygame.font.Font | None = None,
+        ) -> None:
+            rendered_text.append(text)
+            original_draw_text(text, position, color, font)
+
+        self.app._draw_text = capture_text
+        with patch.object(
+            self.app,
+            "_draw_mission_alignment",
+            wraps=self.app._draw_mission_alignment,
+        ) as draw_alignment:
+            self.app._draw()
+            draw_alignment.assert_not_called()
+            self.assertFalse(
+                any(
+                    text.startswith(("Alignment gap", "Launch phase", "Next launch window"))
+                    for text in rendered_text
+                )
+            )
+
+            self.app._handle_click(self.app.mission_control_rects["toggle"].center)
+            rendered_text.clear()
+            self.app._draw()
+            draw_alignment.assert_called_once()
+            self.assertTrue(
+                any(
+                    text.startswith(
+                        ("Alignment gap", "Launch window approaching")
+                    )
+                    for text in rendered_text
+                )
+            )
+            self.assertTrue(
+                any(text.startswith("Launch phase") for text in rendered_text)
+            )
+            self.assertTrue(
+                any(text.startswith("Next launch window") for text in rendered_text)
+            )
+        self.app._draw_text = original_draw_text
+
     def test_argo_disappears_on_arrival_and_arrival_is_shown(self) -> None:
         self.app.sidebar_category = "mission"
         self.app.mission_started = True
@@ -356,7 +626,7 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._draw_text = original_draw_text
 
         self.assertEqual(draw_polygon.call_count, 0)
-        self.assertIn("Argo has reached Mars orbit", rendered_text)
+        self.assertIn("Argo has arrived", rendered_text)
         self.assertEqual(self.app._mission_stage(), "Mission complete")
 
     def test_mission_orbit_overlays_follow_orbits_toggle(self) -> None:
@@ -431,12 +701,12 @@ class SolarSystemAppTests(unittest.TestCase):
             "Αναμονή παραθύρου εκτόξευσης",
         )
         self.assertEqual(
-            self.app._tr("Mars ~{angle}° ahead").format(angle=44),
-            "Άρης ~44° μπροστά",
+            self.app._tr("Launch phase: {angle}°").format(angle=44),
+            "Γωνία εκτόξευσης: 44°",
         )
         self.assertEqual(
-            self.app._tr("Argo has reached Mars orbit"),
-            "Η Αργώ έφτασε σε τροχιά γύρω από τον Άρη",
+            self.app._tr("Argo has arrived"),
+            "Άφιξη της Αργώς",
         )
 
     def test_mission_visibility_hides_route_and_controls(self) -> None:
@@ -475,53 +745,113 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._layout((900, 700))
         self.app.sidebar_category = "mission"
         original_draw_text = self.app._draw_text
-        for language in ("en", "el"):
-            with self.subTest(language=language):
-                self.app.language = language
-                rendered_lines: list[tuple[str, int, int]] = []
-
-                def capture_text(
-                    text: str,
-                    position: tuple[int, int],
-                    color: tuple[int, int, int] = (232, 240, 251),
-                    font: pygame.font.Font | None = None,
-                ) -> None:
-                    selected_font = font or self.app.font
-                    if (
-                        76 <= position[1] < self.app.sidebar_rect.bottom
-                        and position[0] < self.app.sidebar_rect.right
-                    ):
-                        rendered_lines.append(
-                            (
-                                text,
-                                position[0],
-                                selected_font.size(self.app._tr(text))[0],
+        original_draw_centered = self.app._draw_centered
+        for origin in range(len(PLANETS)):
+            self.app.mission_origin = origin
+            for destination in self.app._mission_available_destinations():
+                for language in ("en", "el"):
+                    for mission_started in (False, True):
+                        with self.subTest(
+                            origin=PLANETS[origin].name,
+                            destination=destination,
+                            language=language,
+                            mission_started=mission_started,
+                        ):
+                            self.app.language = language
+                            self.app.mission_destination = destination
+                            self.app.mission_started = mission_started
+                            self.app.mission_active = mission_started
+                            self.app.mission_launched = mission_started
+                            self.app.mission_elapsed_days = (
+                                100.0 if mission_started else 0.0
                             )
-                        )
-                    original_draw_text(text, position, color, font)
+                            rendered_lines: list[tuple[str, int, int]] = []
+                            centered_lines: list[
+                                tuple[str, pygame.Rect, int]
+                            ] = []
 
-                self.app._draw_text = capture_text
-                self.app._draw()
-                self.app._draw_text = original_draw_text
-                for text, x, width in rendered_lines:
-                    self.assertLessEqual(
-                        x + width,
-                        self.app.sidebar_rect.right - 12,
-                        f"{text!r} exceeds sidebar in {language}",
-                    )
-                for label in (
-                    "Schedule mission",
-                    "Pause mission",
-                    "Resume mission",
-                    "Reset mission",
-                ):
-                    self.assertLessEqual(
-                        self.app.tiny_font.size(self.app._tr(label))[0] + 8,
-                        max(rect.width for rect in self.app.mission_control_rects.values()),
-                        f"{label} does not fit in {language}",
-                    )
-                for rect in self.app.mission_control_rects.values():
-                    self.assertTrue(self.app.sidebar_rect.contains(rect))
+                            def capture_text(
+                                text: str,
+                                position: tuple[int, int],
+                                color: tuple[int, int, int] = (232, 240, 251),
+                                font: pygame.font.Font | None = None,
+                            ) -> None:
+                                selected_font = font or self.app.font
+                                if (
+                                    76
+                                    <= position[1]
+                                    < self.app.sidebar_rect.bottom
+                                    and position[0] < self.app.sidebar_rect.right
+                                ):
+                                    rendered_lines.append(
+                                        (
+                                            text,
+                                            position[0],
+                                            selected_font.size(
+                                                self.app._tr(text)
+                                            )[0],
+                                        )
+                                    )
+                                original_draw_text(text, position, color, font)
+
+                            def capture_centered(
+                                text: str,
+                                rect: pygame.Rect,
+                                color: tuple[int, int, int] = (232, 240, 251),
+                                font: pygame.font.Font | None = None,
+                            ) -> None:
+                                selected_font = font or self.app.font
+                                if self.app.sidebar_rect.contains(rect):
+                                    centered_lines.append(
+                                        (
+                                            text,
+                                            rect,
+                                            selected_font.size(
+                                                self.app._tr(text)
+                                            )[0],
+                                        )
+                                    )
+                                original_draw_centered(
+                                    text, rect, color, font
+                                )
+
+                            self.app._draw_text = capture_text
+                            self.app._draw_centered = capture_centered
+                            self.app._draw()
+                            self.app._draw_text = original_draw_text
+                            self.app._draw_centered = original_draw_centered
+                            self.assertEqual(
+                                self.app.mission_destination_rects[
+                                    "origin_previous"
+                                ].left,
+                                self.app.mission_destination_rects[
+                                    "destination_previous"
+                                ].left,
+                            )
+                            self.assertEqual(
+                                self.app.mission_destination_rects[
+                                    "origin_next"
+                                ].left,
+                                self.app.mission_destination_rects[
+                                    "destination_next"
+                                ].left,
+                            )
+                            for text, x, width in rendered_lines:
+                                self.assertLessEqual(
+                                    x + width,
+                                    self.app.sidebar_rect.right - 12,
+                                    f"{text!r} exceeds sidebar",
+                                )
+                            for text, rect, width in centered_lines:
+                                self.assertLessEqual(
+                                    width + 8,
+                                    rect.width,
+                                    f"{text!r} does not fit centered control",
+                                )
+                            for rect in self.app.mission_control_rects.values():
+                                self.assertTrue(
+                                    self.app.sidebar_rect.contains(rect)
+                                )
 
     def test_selecting_moon_opens_grouped_moons_category(self) -> None:
         self.app._select("europa")
