@@ -106,6 +106,27 @@ class SolarSystemAppTests(unittest.TestCase):
             position = self.app._small_body_position(halley, mean_anomaly)
             self.assertAlmostEqual(math.hypot(*position), halley.orbit_radius)
 
+    def test_sun_glow_leaves_clearance_inside_mercurys_orbit(self) -> None:
+        for width, height in ((900, 700), (1280, 800), (1600, 1000)):
+            self.app._layout((width, height))
+            scene_scale = (
+                min(self.app.scene_rect.size) * 0.43 / 318
+            )
+            for zoom in (1.0, 2.2, 3.2):
+                scale = scene_scale * zoom
+                mercury_radius = max(
+                    4,
+                    round(PLANETS[0].radius * max(scale, 0.72)),
+                )
+                glow_radius = self.app._sun_glow_radius(scale, mercury_radius)
+                clearance = (
+                    PLANETS[0].orbit_radius * scale
+                    - mercury_radius
+                    - glow_radius
+                )
+                with self.subTest(size=(width, height), zoom=zoom):
+                    self.assertGreaterEqual(clearance, 8)
+
     def test_small_body_details_are_available_in_both_languages(self) -> None:
         self.app._select("pluto")
         english_facts = self.app._facts_for_selection()

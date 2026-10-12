@@ -14,6 +14,8 @@ PANEL_LIGHT = (24, 42, 65)
 TEXT = (232, 240, 251)
 MUTED = (145, 164, 188)
 ACCENT = (105, 210, 255)
+SUN_GLOW_SCALE = 1.45
+SUN_MIN_ORBIT_CLEARANCE = 8
 
 
 @dataclass(frozen=True)
@@ -930,21 +932,22 @@ class SolarSystemApp:
     def _small_body_position(
         body: SmallBody, mean_anomaly: float
     ) -> tuple[float, float]:
-        eccentric_anomaly = mean_anomaly
-        for _ in range(12):
-            eccentric_anomaly -= (
-                eccentric_anomaly
-                - body.eccentricity * math.sin(eccentric_anomaly)
-                - mean_anomaly
-            ) / (1 - body.eccentricity * math.cos(eccentric_anomaly))
-        true_anomaly = math.atan2(
-            math.sqrt(1 - body.eccentricity**2)
-            * math.sin(eccentric_anomaly),
-            math.cos(eccentric_anomaly) - body.eccentricity,
-        )
         return (
-            body.orbit_radius * math.cos(true_anomaly),
-            body.orbit_radius * math.sin(true_anomaly),
+            body.orbit_radius * math.cos(mean_anomaly),
+            body.orbit_radius * math.sin(mean_anomaly),
+        )
+
+    @staticmethod
+    def _sun_glow_radius(scale: float, mercury_radius: int) -> int:
+        sun_radius = max(10, round(16 * scale))
+        clearance_limited_radius = math.floor(
+            PLANETS[0].orbit_radius * scale
+            - mercury_radius
+            - SUN_MIN_ORBIT_CLEARANCE
+        )
+        return max(
+            sun_radius,
+            min(round(sun_radius * SUN_GLOW_SCALE), clearance_limited_radius),
         )
 
     def _draw_scene(self) -> None:
@@ -1002,7 +1005,7 @@ class SolarSystemApp:
                 if orbit_radius < max(scene.size) * 2:
                     pygame.draw.ellipse(
                         scene_surface,
-                        (24, 37, 58),
+                        (37, 57, 83) if planet.name == "Mercury" else (24, 37, 58),
                         pygame.Rect(
                             solar_x - orbit_radius,
                             solar_y - orbit_radius,
@@ -1045,16 +1048,19 @@ class SolarSystemApp:
                 )
 
         sun_radius = max(10, round(16 * scale))
-        for glow_scale, color in (
-            (3.0, (35, 26, 18)),
-            (2.4, (58, 37, 21)),
-            (1.8, (102, 62, 25)),
+        sun_glow_radius = self._sun_glow_radius(
+            scale, max(4, round(PLANETS[0].radius * max(scale, 0.72)))
+        )
+        for glow_fraction, color in (
+            (1.0, (35, 26, 18)),
+            (0.78, (58, 37, 21)),
+            (0.56, (102, 62, 25)),
         ):
             pygame.draw.circle(
                 scene_surface,
                 color,
                 (round(solar_x), round(solar_y)),
-                max(sun_radius, round(sun_radius * glow_scale)),
+                max(sun_radius, round(sun_glow_radius * glow_fraction)),
             )
         pygame.draw.circle(scene_surface, (255, 201, 92), (round(solar_x), round(solar_y)), sun_radius)
         pygame.draw.circle(scene_surface, (255, 235, 173), (round(solar_x), round(solar_y)), sun_radius, 1)
@@ -1340,7 +1346,7 @@ class SolarSystemApp:
             target_y = planet.orbit_radius * math.sin(
                 self.phases[focus_index]
             )
-        elif self.focus_mode and small_body is not None:
+        elif self.focus_mode and small_body is not None and self.show_small_bodies:
             target_x, target_y = self._small_body_position(
                 small_body,
                 self.small_body_mean_anomalies[small_body.identifier],
