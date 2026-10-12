@@ -22,7 +22,7 @@ class Planet:
     color: tuple[int, int, int]
     radius: int
     orbit_radius: int
-    visual_orbit_seconds: float
+    orbital_period_days: float
     description: str
     diameter: str
     distance_from_sun: str
@@ -37,7 +37,7 @@ class Planet:
 class Asteroid:
     orbit_radius: float
     phase: float
-    visual_orbit_seconds: float
+    orbital_period_days: float
     radius: int
     color: tuple[int, int, int]
 
@@ -50,31 +50,72 @@ class Moon:
     diameter: str
     orbital_period: str
     visual_orbit_radius: int
-    visual_orbit_seconds: float
+    orbital_period_days: float
     color: tuple[int, int, int]
     description: str
 
 
+@dataclass(frozen=True)
+class SmallBody:
+    identifier: str
+    name: str
+    classification: str
+    orbit_radius: float
+    eccentricity: float
+    orbital_period_days: float
+    orbital_period: str
+    diameter: str
+    average_distance: str
+    color: tuple[int, int, int]
+    radius: int
+    description: str
+
+
 PLANETS = (
-    Planet("Mercury", (169, 173, 181), 5, 48, 7, "The smallest planet and closest to the Sun.", "4,879 km", "57.9 million km", "58.6 Earth days", "88 Earth days", "167 C", "0"),
-    Planet("Venus", (233, 189, 120), 8, 78, 12, "A rocky world with a thick, hot atmosphere.", "12,104 km", "108.2 million km", "243 Earth days", "224.7 Earth days", "464 C", "0"),
-    Planet("Earth", (75, 159, 255), 9, 111, 18, "Our home: the only world known to support life.", "12,742 km", "149.6 million km", "24 hours", "365.25 days", "15 C", "1"),
-    Planet("Mars", (237, 118, 94), 7, 145, 25, "A cold desert world with a rusty-red surface.", "6,779 km", "227.9 million km", "24.6 hours", "687 Earth days", "-65 C", "2"),
-    Planet("Jupiter", (213, 167, 126), 17, 190, 37, "The largest planet, famous for its Great Red Spot.", "139,820 km", "778.6 million km", "9.9 hours", "11.86 Earth years", "-110 C", "115"),
-    Planet("Saturn", (230, 209, 154), 14, 235, 52, "A gas giant surrounded by a spectacular ring system.", "116,460 km", "1.43 billion km", "10.7 hours", "29.45 Earth years", "-140 C", "293", True),
-    Planet("Uranus", (138, 217, 220), 11, 278, 68, "An ice giant that rotates almost on its side.", "50,724 km", "2.87 billion km", "17.2 hours", "84 Earth years", "-195 C", "29"),
-    Planet("Neptune", (88, 127, 240), 11, 318, 84, "A distant, windy ice giant.", "49,244 km", "4.50 billion km", "16.1 hours", "164.8 Earth years", "-200 C", "16"),
+    Planet("Mercury", (169, 173, 181), 5, 48, 87.969, "The smallest planet and closest to the Sun.", "4,879 km", "57.9 million km", "58.6 Earth days", "88 Earth days", "167 C", "0"),
+    Planet("Venus", (233, 189, 120), 8, 78, 224.701, "A rocky world with a thick, hot atmosphere.", "12,104 km", "108.2 million km", "243 Earth days", "224.7 Earth days", "464 C", "0"),
+    Planet("Earth", (75, 159, 255), 9, 111, 365.256, "Our home: the only world known to support life.", "12,742 km", "149.6 million km", "24 hours", "365.25 days", "15 C", "1"),
+    Planet("Mars", (237, 118, 94), 7, 145, 686.980, "A cold desert world with a rusty-red surface.", "6,779 km", "227.9 million km", "24.6 hours", "687 Earth days", "-65 C", "2"),
+    Planet("Jupiter", (213, 167, 126), 17, 190, 4332.59, "The largest planet, famous for its Great Red Spot.", "139,820 km", "778.6 million km", "9.9 hours", "11.86 Earth years", "-110 C", "115"),
+    Planet("Saturn", (230, 209, 154), 14, 235, 10759.22, "A gas giant surrounded by a spectacular ring system.", "116,460 km", "1.43 billion km", "10.7 hours", "29.45 Earth years", "-140 C", "293", True),
+    Planet("Uranus", (138, 217, 220), 11, 278, 30688.5, "An ice giant that rotates almost on its side.", "50,724 km", "2.87 billion km", "17.2 hours", "84 Earth years", "-195 C", "29"),
+    Planet("Neptune", (88, 127, 240), 11, 318, 60182.0, "A distant, windy ice giant.", "49,244 km", "4.50 billion km", "16.1 hours", "164.8 Earth years", "-200 C", "16"),
 )
 MOONS = (
-    Moon("moon", "The Moon", 2, "3,475 km", "27.3 days", 18, 2.5, (220, 227, 235), "Earth's natural satellite; its gravity drives ocean tides."),
-    Moon("io", "Io", 4, "3,643 km", "1.77 days", 25, 1.8, (245, 215, 122), "The most volcanically active world known, heated by Jupiter's tides."),
-    Moon("europa", "Europa", 4, "3,122 km", "3.55 days", 34, 2.5, (185, 214, 220), "An icy moon with strong evidence for a global subsurface ocean."),
-    Moon("ganymede", "Ganymede", 4, "5,268 km", "7.15 days", 44, 3.4, (180, 161, 139), "The Solar System's largest moon, with its own magnetic field."),
-    Moon("callisto", "Callisto", 4, "4,821 km", "16.69 days", 55, 4.5, (144, 135, 125), "An ancient, cratered moon that may hide a salty ocean."),
-    Moon("titan", "Titan", 5, "5,150 km", "15.95 days", 32, 3.8, (223, 168, 94), "A thick nitrogen-rich atmosphere and lakes of liquid methane."),
+    Moon("moon", "The Moon", 2, "3,475 km", "27.3 days", 18, 27.322, (220, 227, 235), "Earth's natural satellite; its gravity drives ocean tides."),
+    Moon("io", "Io", 4, "3,643 km", "1.77 days", 25, 1.769, (245, 215, 122), "The most volcanically active world known, heated by Jupiter's tides."),
+    Moon("europa", "Europa", 4, "3,122 km", "3.55 days", 34, 3.551, (185, 214, 220), "An icy moon with strong evidence for a global subsurface ocean."),
+    Moon("ganymede", "Ganymede", 4, "5,268 km", "7.15 days", 44, 7.155, (180, 161, 139), "The Solar System's largest moon, with its own magnetic field."),
+    Moon("callisto", "Callisto", 4, "4,821 km", "16.69 days", 55, 16.689, (144, 135, 125), "An ancient, cratered moon that may hide a salty ocean."),
+    Moon("titan", "Titan", 5, "5,150 km", "15.95 days", 32, 15.945, (223, 168, 94), "A thick nitrogen-rich atmosphere and lakes of liquid methane."),
 )
+SMALL_BODIES = (
+    SmallBody(
+        "ceres", "Ceres", "Dwarf planet", 168, 0.076, 1681.6, "4.6 Earth years",
+        "940 km", "413.7 million km", (194, 176, 145), 4,
+        "The largest object in the asteroid belt and a dwarf planet.",
+    ),
+    SmallBody(
+        "pluto", "Pluto", "Dwarf planet", 370, 0.249, 90560, "248 Earth years",
+        "2,377 km", "5.9 billion km", (190, 166, 146), 5,
+        "An icy dwarf planet in the distant Kuiper Belt.",
+    ),
+    SmallBody(
+        "halley", "Halley's Comet", "Comet", 205, 0.967, 27498, "75.3 Earth years",
+        "About 11 km", "Varies greatly", (204, 194, 170), 3,
+        "A famous short-period comet that returns to the inner Solar System about every 75 years.",
+    ),
+)
+EARTH_YEAR_DAYS = 365.256
+SIMULATION_TIME_SCALES = (
+    ("Time: 1 day/s", 1.0),
+    ("Time: 30 days/s", 30.0),
+    ("Time: 1 year/s", EARTH_YEAR_DAYS),
+)
+ASTEROID_BELT_INNER_AU = 2.1
+ASTEROID_BELT_OUTER_AU = 3.3
 MOONS_BY_ID = {moon.identifier: moon for moon in MOONS}
-BODY_NAMES = ("The Sun",) + tuple(planet.name for planet in PLANETS)
+SMALL_BODIES_BY_ID = {body.identifier: body for body in SMALL_BODIES}
 ASTEROID_COUNT = 240
 ASTEROID_BELT = "asteroid_belt"
 ASTEROID_BELT_DESCRIPTION = (
@@ -87,7 +128,11 @@ ASTEROID_BELT_FACTS = (
     "The objects are widely separated",
     "Not a solid or densely packed ring",
 )
-BODY_NAMES += ("Asteroid Belt",)
+SIDEBAR_CATEGORIES = (
+    ("planets", "Planets"),
+    ("moons", "Moons"),
+    ("small_bodies", "Small bodies"),
+)
 TOUR_FACTS = (
     "The Sun is a star at the centre of our Solar System. Sunlight takes about 8 minutes and 20 seconds to reach Earth.",
     "A year on Mercury lasts just 88 Earth days.",
@@ -107,6 +152,11 @@ TRANSLATIONS = {
     "PAUSED": "ΣΕ ΠΑΥΣΗ",
     "MISSION CONTROL": "ΚΕΝΤΡΟ ΕΛΕΓΧΟΥ",
     "Select a body or orbiting moon": "Επίλεξε σώμα ή φεγγάρι",
+    "Planets": "Πλανήτες",
+    "Moons": "Φεγγάρια",
+    "Small bodies": "Μικρά σώματα",
+    "ON": "ΝΑΙ",
+    "OFF": "ΟΧΙ",
     "Asteroid Belt": "Ζώνη αστεροειδών",
     "The Sun": "Ήλιος",
     "Mercury": "Ερμής",
@@ -118,6 +168,15 @@ TRANSLATIONS = {
     "Uranus": "Ουρανός",
     "Neptune": "Ποσειδώνας",
     "The Moon": "Σελήνη",
+    "Ceres": "Δήμητρα",
+    "Pluto": "Πλούτωνας",
+    "Halley's Comet": "Κομήτης του Χάλεϊ",
+    "Dwarf planet": "Νάνος πλανήτης",
+    "Comet": "Κομήτης",
+    "Type": "Τύπος",
+    "Orbit shown schematically; not to scale.": "Η τροχιά απεικονίζεται σχηματικά και δεν είναι υπό κλίμακα.",
+    "Eccentricity": "Εκκεντρότητα",
+    "Displayed orbit is circular for clarity.": "Η τροχιά εμφανίζεται κυκλική για καθαρότερη απεικόνιση.",
     "Io": "Ιώ",
     "Europa": "Ευρώπη",
     "Ganymede": "Γανυμήδης",
@@ -139,6 +198,18 @@ TRANSLATIONS = {
     "The Solar System's largest moon, with its own magnetic field.": "Το μεγαλύτερο φεγγάρι του Ηλιακού Συστήματος, με δικό του μαγνητικό πεδίο.",
     "An ancient, cratered moon that may hide a salty ocean.": "Ένα αρχαίο, γεμάτο κρατήρες φεγγάρι που ίσως κρύβει αλμυρό ωκεανό.",
     "A thick nitrogen-rich atmosphere and lakes of liquid methane.": "Πυκνή ατμόσφαιρα πλούσια σε άζωτο και λίμνες υγρού μεθανίου.",
+    "The largest object in the asteroid belt and a dwarf planet.": "Το μεγαλύτερο σώμα στη ζώνη αστεροειδών και ένας νάνος πλανήτης.",
+    "An icy dwarf planet in the distant Kuiper Belt.": "Ένας παγωμένος νάνος πλανήτης στην απομακρυσμένη ζώνη του Κάιπερ.",
+    "A famous short-period comet that returns to the inner Solar System about every 75 years.": "Ένας διάσημος κομήτης μικρής περιόδου που επιστρέφει στο εσωτερικό Ηλιακό Σύστημα περίπου κάθε 75 χρόνια.",
+    "About 11 km": "Περίπου 11 χλμ.",
+    "Varies greatly": "Μεταβάλλεται σημαντικά",
+    "413.7 million km": "413,7 εκατ. χλμ.",
+    "5.9 billion km": "5,9 δισ. χλμ.",
+    "2,377 km": "2.377 χλμ.",
+    "940 km": "940 χλμ.",
+    "4.6 Earth years": "4,6 γήινα έτη",
+    "248 Earth years": "248 γήινα έτη",
+    "75.3 Earth years": "75,3 γήινα έτη",
     "A broad region of rocky and metallic bodies orbiting mostly between Mars and Jupiter.": "Μια εκτεταμένη περιοχή βραχωδών και μεταλλικών σωμάτων, κυρίως ανάμεσα στον Άρη και τον Δία.",
     "The star at the centre of our Solar System.": "Το άστρο στο κέντρο του Ηλιακού μας Συστήματος.",
     "Diameter": "Διάμετρος",
@@ -180,11 +251,14 @@ TRANSLATIONS = {
     "Reset": "Επαναφορά",
     "Orbits & trails": "Τροχιές και ίχνη",
     "Planet Focus": "Εστίαση σε πλανήτη",
+    "Time: 1 day/s": "Χρόνος: 1 ημέρα/δευτ.",
+    "Time: 30 days/s": "Χρόνος: 30 ημέρες/δευτ.",
+    "Time: 1 year/s": "Χρόνος: 1 έτος/δευτ.",
     "PLANET FOCUS": "ΕΣΤΙΑΣΗ ΣΕ ΠΛΑΝΗΤΗ",
     "NOT TO SCALE  ·  ACCELERATED ORBITS": "ΟΙ ΑΠΟΣΤΑΣΕΙΣ ΔΕΝ ΕΙΝΑΙ ΥΠΟ ΚΛΙΜΑΚΑ  ·  ΕΠΙΤΑΧΥΜΕΝΕΣ ΤΡΟΧΙΕΣ",
     "REFERENCE DATA  ·  NOT TO SCALE  ·  ACCELERATED ORBITS": "ΤΙΜΕΣ ΑΝΑΦΟΡΑΣ  ·  ΕΚΤΟΣ ΚΛΙΜΑΚΑΣ  ·  ΕΠΙΤΑΧΥΜΕΝΕΣ ΤΡΟΧΙΕΣ",
     "Reset view": "Επαναφορά προβολής",
-    "Space pause  ·  O orbits  ·  F focus  ·  R reset  ·  +/- speed  ·  wheel zoom": "Διάστημα: παύση  ·  O: τροχιές  ·  F: εστίαση  ·  R: επαναφορά  ·  +/-: ταχύτητα  ·  ροδέλα: ζουμ",
+    "Space pause  ·  O orbits  ·  F focus  ·  T time scale  ·  R reset  ·  +/- speed  ·  wheel zoom": "Διάστημα: παύση  ·  O: τροχιές  ·  F: εστίαση  ·  T: χρόνος  ·  R: επαναφορά  ·  +/-: ταχύτητα  ·  ροδέλα: ζουμ",
     "Not to scale · orbital motion is accelerated": "Οι αποστάσεις δεν είναι υπό κλίμακα · η κίνηση είναι επιταχυμένη",
     "ASTEROID BELT": "ΖΩΝΗ ΑΣΤΕΡΟΕΙΔΩΝ",
     "1.39 million km": "1,39 εκατ. χλμ.",
@@ -251,6 +325,7 @@ class SolarSystemApp:
         self.show_orbits = True
         self.focus_mode = False
         self.speed = 1.0
+        self.time_scale_index = 0
         self.selected: int | str | None = 2
         self.tour_active = False
         self.tour_paused = False
@@ -262,6 +337,10 @@ class SolarSystemApp:
         self.camera_focus_y = 0.0
         self.camera_zoom = 1.0
         self.phases = [index * 0.73 for index in range(len(PLANETS))]
+        self.small_body_mean_anomalies = {
+            body.identifier: index * math.tau / len(SMALL_BODIES)
+            for index, body in enumerate(SMALL_BODIES)
+        }
         self.moon_phases = {
             moon.identifier: index * math.tau / len(MOONS)
             for index, moon in enumerate(MOONS)
@@ -271,6 +350,12 @@ class SolarSystemApp:
         self.stars = self._make_stars()
         self.hit_targets: list[tuple[float, float, float, int | str | None]] = []
         self.list_rects: list[tuple[pygame.Rect, int | str | None]] = []
+        self.category_rects: list[tuple[pygame.Rect, str]] = []
+        self.visibility_rects: list[tuple[pygame.Rect, str]] = []
+        self.sidebar_category: str | None = "planets"
+        self.show_moons = True
+        self.show_small_bodies = True
+        self.sidebar_details_top = 0
         self.asteroid_belt_hit_area = (0.0, 0.0, 0.0, 0.0)
         self.buttons: dict[str, pygame.Rect] = {}
         self._layout((1280, 800))
@@ -293,19 +378,29 @@ class SolarSystemApp:
         rng = random.Random(24)
         inner_orbit = PLANETS[3].orbit_radius + 4
         outer_orbit = PLANETS[4].orbit_radius - 4
-        earth_orbit = PLANETS[2].orbit_radius
-        earth_year = PLANETS[2].visual_orbit_seconds
         asteroids = []
         for _ in range(ASTEROID_COUNT):
             orbit_radius = math.sqrt(
                 rng.uniform(inner_orbit**2, outer_orbit**2)
             )
-            period = earth_year * (orbit_radius / earth_orbit) ** 1.5
+            annulus_fraction = (
+                (orbit_radius**2 - inner_orbit**2)
+                / (outer_orbit**2 - inner_orbit**2)
+            )
+            orbital_radius_au = math.sqrt(
+                ASTEROID_BELT_INNER_AU**2
+                + annulus_fraction
+                * (
+                    ASTEROID_BELT_OUTER_AU**2
+                    - ASTEROID_BELT_INNER_AU**2
+                )
+            )
+            orbital_period_days = EARTH_YEAR_DAYS * orbital_radius_au**1.5
             asteroids.append(
                 Asteroid(
                     orbit_radius=orbit_radius,
                     phase=rng.uniform(0, math.tau),
-                    visual_orbit_seconds=period,
+                    orbital_period_days=orbital_period_days,
                     radius=rng.choices((1, 2), weights=(5, 1))[0],
                     color=rng.choice(
                         ((111, 105, 99), (139, 126, 108), (91, 94, 98), (157, 144, 123))
@@ -354,8 +449,53 @@ class SolarSystemApp:
             "slower": pygame.Rect(width - 207, height - 58, 42, 38),
             "faster": pygame.Rect(width - 54, height - 58, 36, 38),
             "language": pygame.Rect(width - 278, 20, 78, 34),
+            "time_scale": pygame.Rect(width - 450, 20, 160, 34),
         }
         self.buttons.update(bottom_controls)
+
+    def _cycle_time_scale(self) -> None:
+        self.time_scale_index = (
+            self.time_scale_index + 1
+        ) % len(SIMULATION_TIME_SCALES)
+
+    def _simulated_days_per_second(self) -> float:
+        return SIMULATION_TIME_SCALES[self.time_scale_index][1]
+
+    def _time_scale_label(self) -> str:
+        return SIMULATION_TIME_SCALES[self.time_scale_index][0]
+
+    def _advance_orbits(self, elapsed_seconds: float) -> None:
+        simulated_days = (
+            elapsed_seconds
+            * self._simulated_days_per_second()
+            * self.speed
+        )
+        self.phases = [
+            (
+                phase
+                + math.tau * simulated_days / planet.orbital_period_days
+            )
+            % math.tau
+            for phase, planet in zip(self.phases, PLANETS)
+        ]
+        for moon in MOONS:
+            self.moon_phases[moon.identifier] = (
+                self.moon_phases[moon.identifier]
+                + math.tau * simulated_days / moon.orbital_period_days
+            ) % math.tau
+        for body in SMALL_BODIES:
+            self.small_body_mean_anomalies[body.identifier] = (
+                self.small_body_mean_anomalies[body.identifier]
+                + math.tau * simulated_days / body.orbital_period_days
+            ) % math.tau
+        for asteroid in self.asteroids:
+            asteroid.phase = (
+                asteroid.phase
+                + math.tau * simulated_days / asteroid.orbital_period_days
+            ) % math.tau
+        for trail, phase in zip(self.trails, self.phases):
+            trail.append(phase)
+            del trail[:-36]
 
     def _tr(self, text: str) -> str:
         if self.language == "el":
@@ -414,13 +554,22 @@ class SolarSystemApp:
             "language",
             "Ελληνικά" if self.language == "en" else "English",
         )
+        self._draw_button(
+            "time_scale",
+            self._time_scale_label(),
+            self.time_scale_index != 0,
+        )
 
         pygame.draw.rect(self.screen, PANEL, self.sidebar_rect)
         self._draw_text("MISSION CONTROL", (18, 92), ACCENT, self.tiny_font)
         self._draw_text("Select a body or orbiting moon", (18, 112), TEXT, self.small_font)
         self.list_rects = []
+        self.category_rects = []
+        self.visibility_rects = []
         list_top = 140 if self.compact_sidebar else 151
-        list_spacing = 20 if self.compact_sidebar else 31
+        row_spacing = 18 if self.compact_sidebar else 29
+        row_height = 18 if self.compact_sidebar else 26
+        category_height = 18 if self.compact_sidebar else 27
         selected_moon = (
             MOONS_BY_ID.get(self.selected)
             if isinstance(self.selected, str)
@@ -433,31 +582,137 @@ class SolarSystemApp:
             if isinstance(self.selected, int)
             else None
         )
-        for item_index, name in enumerate(BODY_NAMES):
-            y = list_top + item_index * list_spacing
-            row_height = 19 if self.compact_sidebar else 28
-            rect = pygame.Rect(12, y, self.sidebar_width - 24, row_height)
-            if item_index == 0:
-                selected = self.selected is None
-                body_index: int | str | None = None
-            elif item_index == len(BODY_NAMES) - 1:
-                selected = self.selected == ASTEROID_BELT
-                body_index = ASTEROID_BELT
-            else:
-                body_index = item_index - 1
-                selected = selected_host_index == body_index
+        y = list_top
+        for category, label in SIDEBAR_CATEGORIES:
+            category_rect = pygame.Rect(
+                12, y, self.sidebar_width - 24, category_height
+            )
+            expanded = category == self.sidebar_category
             pygame.draw.rect(
                 self.screen,
-                PANEL_LIGHT if selected else PANEL,
-                rect,
+                PANEL_LIGHT if expanded else (18, 31, 49),
+                category_rect,
                 border_radius=6,
             )
-            color = ACCENT if selected else TEXT
-            localized_name = self._tr(name)
-            self._draw_text(("☀ " if item_index == 0 else "  ") + localized_name, (22, y + 5), color, self.small_font)
-            self.list_rects.append((rect, body_index))
+            self._draw_text(
+                ("- " if expanded else "+ ") + self._tr(label),
+                (20, y + 3),
+                ACCENT if expanded else TEXT,
+                self.small_font,
+            )
+            self.category_rects.append((category_rect, category))
+            visibility_rect = pygame.Rect(
+                category_rect.right - 48,
+                y + (category_height - 18) // 2,
+                42,
+                18,
+            )
+            visible = (
+                self.show_moons if category == "moons"
+                else self.show_small_bodies if category == "small_bodies"
+                else None
+            )
+            if visible is not None:
+                pygame.draw.rect(
+                    self.screen,
+                    PANEL if visible else (18, 31, 49),
+                    visibility_rect,
+                    border_radius=6,
+                )
+                self._draw_centered(
+                    self._tr("ON" if visible else "OFF"),
+                    visibility_rect,
+                    ACCENT if visible else MUTED,
+                    self.tiny_font,
+                )
+                self.visibility_rects.append((visibility_rect, category))
+            y += row_spacing
+            if not expanded:
+                continue
 
-        details_top = list_top + len(BODY_NAMES) * list_spacing + (6 if self.compact_sidebar else 10)
+            if category == "planets":
+                planet_entries: tuple[tuple[str, int | None], ...] = (
+                    ("The Sun", None),
+                    *((planet.name, index) for index, planet in enumerate(PLANETS)),
+                )
+                for name, body_index in planet_entries:
+                    rect = pygame.Rect(20, y, self.sidebar_width - 32, row_height)
+                    selected = (
+                        self.selected is None
+                        if body_index is None
+                        else selected_host_index == body_index
+                    )
+                    pygame.draw.rect(
+                        self.screen,
+                        PANEL_LIGHT if selected else PANEL,
+                        rect,
+                        border_radius=6,
+                    )
+                    prefix = "☀ " if body_index is None else "  "
+                    self._draw_text(
+                        prefix + self._tr(name),
+                        (28, y + 3),
+                        ACCENT if selected else TEXT,
+                        self.small_font,
+                    )
+                    self.list_rects.append((rect, body_index))
+                    y += row_spacing
+            elif category == "moons":
+                for planet_index, planet in enumerate(PLANETS):
+                    planet_moons = tuple(
+                        moon for moon in MOONS if moon.planet_index == planet_index
+                    )
+                    if not planet_moons:
+                        continue
+                    self._draw_text(
+                        self._tr(planet.name),
+                        (24, y + 2),
+                        MUTED,
+                        self.tiny_font,
+                    )
+                    y += row_spacing
+                    for moon in planet_moons:
+                        rect = pygame.Rect(28, y, self.sidebar_width - 40, row_height)
+                        selected = self.selected == moon.identifier
+                        pygame.draw.rect(
+                            self.screen,
+                            PANEL_LIGHT if selected else PANEL,
+                            rect,
+                            border_radius=6,
+                        )
+                        self._draw_text(
+                            self._tr(moon.name),
+                            (36, y + 3),
+                            ACCENT if selected else TEXT,
+                            self.small_font,
+                        )
+                        self.list_rects.append((rect, moon.identifier))
+                        y += row_spacing
+            else:
+                small_body_entries: tuple[tuple[str, str], ...] = (
+                    *((body.identifier, body.name) for body in SMALL_BODIES),
+                    (ASTEROID_BELT, "Asteroid Belt"),
+                )
+                for body_id, name in small_body_entries:
+                    rect = pygame.Rect(20, y, self.sidebar_width - 32, row_height)
+                    selected = self.selected == body_id
+                    pygame.draw.rect(
+                        self.screen,
+                        PANEL_LIGHT if selected else PANEL,
+                        rect,
+                        border_radius=6,
+                    )
+                    self._draw_text(
+                        "  " + self._tr(name),
+                        (28, y + 3),
+                        ACCENT if selected else TEXT,
+                        self.small_font,
+                    )
+                    self.list_rects.append((rect, body_id))
+                    y += row_spacing
+
+        details_top = y + (6 if self.compact_sidebar else 10)
+        self.sidebar_details_top = details_top
         pygame.draw.line(
             self.screen,
             (32, 49, 71),
@@ -468,6 +723,11 @@ class SolarSystemApp:
             selected_name = "Asteroid Belt"
             description = ASTEROID_BELT_DESCRIPTION
             fact_lines = ASTEROID_BELT_FACTS
+        elif isinstance(self.selected, str) and self.selected in SMALL_BODIES_BY_ID:
+            small_body = SMALL_BODIES_BY_ID[self.selected]
+            selected_name = small_body.name
+            description = small_body.description
+            fact_lines = self._facts_for_selection()
         elif isinstance(self.selected, str) and self.selected in MOONS_BY_ID:
             moon = MOONS_BY_ID[self.selected]
             selected_name = moon.name
@@ -551,9 +811,15 @@ class SolarSystemApp:
         self._draw_button("slower", "−")
         self._draw_button("faster", "+")
         speed_rect = pygame.Rect(self.width - 160, self.height - 58, 90, 38)
-        self._draw_centered(f"{self.speed:.1f}×", speed_rect, ACCENT, self.small_font)
+        effective_rate = self.speed * self._simulated_days_per_second()
+        self._draw_centered(
+            f"{self.speed:.1f}× {effective_rate:.4g}d/s",
+            speed_rect,
+            ACCENT,
+            self.tiny_font,
+        )
         self._draw_text(
-            "Space pause  ·  O orbits  ·  F focus  ·  R reset  ·  +/- speed  ·  wheel zoom",
+            "Space pause  ·  O orbits  ·  F focus  ·  T time scale  ·  R reset  ·  +/- speed  ·  wheel zoom",
             (self.sidebar_width + 18, self.height - 16),
             MUTED,
             self.tiny_font,
@@ -598,6 +864,20 @@ class SolarSystemApp:
         if self.selected == ASTEROID_BELT:
             return ASTEROID_BELT_FACTS
         if isinstance(self.selected, str):
+            small_body = SMALL_BODIES_BY_ID.get(self.selected)
+            if small_body is not None:
+                eccentricity = f"{small_body.eccentricity:.3f}"
+                if self.language == "el":
+                    eccentricity = eccentricity.replace(".", ",")
+                return (
+                    f"{self._tr('Type')}: {self._tr(small_body.classification)}",
+                    f"{self._tr('Diameter')}: {self._tr(small_body.diameter)}",
+                    f"{self._tr('Distance')}: {self._tr(small_body.average_distance)}",
+                    f"{self._tr('Orbital period')}: {self._tr(small_body.orbital_period)}",
+                    f"{self._tr('Eccentricity')}: {eccentricity}",
+                    self._tr("Displayed orbit is circular for clarity."),
+                    self._tr("Orbit shown schematically; not to scale."),
+                )
             moon = MOONS_BY_ID[self.selected]
             return (
                 f"{self._tr('Orbits')}: {self._tr(PLANETS[moon.planet_index].name)}",
@@ -646,6 +926,27 @@ class SolarSystemApp:
                 max(1, round(planet_radius * width_factor)),
             )
 
+    @staticmethod
+    def _small_body_position(
+        body: SmallBody, mean_anomaly: float
+    ) -> tuple[float, float]:
+        eccentric_anomaly = mean_anomaly
+        for _ in range(12):
+            eccentric_anomaly -= (
+                eccentric_anomaly
+                - body.eccentricity * math.sin(eccentric_anomaly)
+                - mean_anomaly
+            ) / (1 - body.eccentricity * math.cos(eccentric_anomaly))
+        true_anomaly = math.atan2(
+            math.sqrt(1 - body.eccentricity**2)
+            * math.sin(eccentric_anomaly),
+            math.cos(eccentric_anomaly) - body.eccentricity,
+        )
+        return (
+            body.orbit_radius * math.cos(true_anomaly),
+            body.orbit_radius * math.sin(true_anomaly),
+        )
+
     def _draw_scene(self) -> None:
         scene = self.scene_rect
         pygame.draw.rect(self.screen, BACKGROUND, scene)
@@ -679,8 +980,8 @@ class SolarSystemApp:
             solar_y,
             belt_inner_radius,
             belt_outer_radius,
-        )
-        if self.selected == ASTEROID_BELT:
+        ) if self.show_small_bodies else (0.0, 0.0, 0.0, 0.0)
+        if self.show_small_bodies and self.selected == ASTEROID_BELT:
             for belt_radius in (belt_inner_radius, belt_outer_radius):
                 pygame.draw.circle(
                     scene_surface,
@@ -711,6 +1012,16 @@ class SolarSystemApp:
                         1,
                     )
 
+            if self.show_small_bodies:
+                for body in SMALL_BODIES:
+                    pygame.draw.circle(
+                        scene_surface,
+                        ACCENT if self.selected == body.identifier else (24, 37, 58),
+                        (round(solar_x), round(solar_y)),
+                        round(body.orbit_radius * scale),
+                        1,
+                    )
+
             for index, trail in enumerate(self.trails):
                 orbit_radius = PLANETS[index].orbit_radius * scale
                 for trail_index, phase in enumerate(trail):
@@ -722,15 +1033,16 @@ class SolarSystemApp:
                     color = tuple(round(channel * alpha_factor) for channel in PLANETS[index].color)
                     pygame.draw.circle(scene_surface, color, point, 2)
 
-        for asteroid in self.asteroids:
-            x = solar_x + math.cos(asteroid.phase) * asteroid.orbit_radius * scale
-            y = solar_y + math.sin(asteroid.phase) * asteroid.orbit_radius * scale
-            pygame.draw.circle(
-                scene_surface,
-                asteroid.color,
-                (round(x), round(y)),
-                max(1, round(asteroid.radius * min(scale, 1.5))),
-            )
+        if self.show_small_bodies:
+            for asteroid in self.asteroids:
+                x = solar_x + math.cos(asteroid.phase) * asteroid.orbit_radius * scale
+                y = solar_y + math.sin(asteroid.phase) * asteroid.orbit_radius * scale
+                pygame.draw.circle(
+                    scene_surface,
+                    asteroid.color,
+                    (round(x), round(y)),
+                    max(1, round(asteroid.radius * min(scale, 1.5))),
+                )
 
         sun_radius = max(10, round(16 * scale))
         for glow_scale, color in (
@@ -794,7 +1106,11 @@ class SolarSystemApp:
             scene_surface.blit(label, (round(x + radius + 5), round(y - label.get_height() / 2)))
             self.hit_targets.append((x, y, radius + 9, index))
             for moon in MOONS:
-                if moon.planet_index != index or selected_host_index != index:
+                if (
+                    not self.show_moons
+                    or moon.planet_index != index
+                    or selected_host_index != index
+                ):
                     continue
                 moon_orbit = moon.visual_orbit_radius * scale
                 moon_x = x + math.cos(self.moon_phases[moon.identifier]) * moon_orbit
@@ -839,6 +1155,40 @@ class SolarSystemApp:
                     (moon_x, moon_y, moon_radius + 7, moon.identifier)
                 )
 
+        if self.show_small_bodies:
+            for body in SMALL_BODIES:
+                relative_x, relative_y = self._small_body_position(
+                    body,
+                    self.small_body_mean_anomalies[body.identifier],
+                )
+                x = solar_x + relative_x * scale
+                y = solar_y + relative_y * scale
+                radius = max(3, round(body.radius * max(scale, 0.72)))
+                pygame.draw.circle(
+                    scene_surface,
+                    body.color,
+                    (round(x), round(y)),
+                    radius,
+                )
+                if self.selected == body.identifier:
+                    pygame.draw.circle(
+                        scene_surface,
+                        ACCENT,
+                        (round(x), round(y)),
+                        radius + 4,
+                        1,
+                    )
+                label = self.tiny_font.render(
+                    self._tr(body.name),
+                    True,
+                    TEXT if self.selected == body.identifier else MUTED,
+                )
+                scene_surface.blit(
+                    label,
+                    (round(x + radius + 3), round(y - label.get_height() / 2)),
+                )
+                self.hit_targets.append((x, y, radius + 7, body.identifier))
+
         self.screen.blit(scene_surface, scene.topleft)
         self._draw_text(
             "REFERENCE DATA  ·  NOT TO SCALE  ·  ACCELERATED ORBITS",
@@ -863,6 +1213,10 @@ class SolarSystemApp:
     def _reset(self) -> None:
         self._stop_tour()
         self.phases = [index * 0.73 for index in range(len(PLANETS))]
+        self.small_body_mean_anomalies = {
+            body.identifier: index * math.tau / len(SMALL_BODIES)
+            for index, body in enumerate(SMALL_BODIES)
+        }
         self.moon_phases = {
             moon.identifier: index * math.tau / len(MOONS)
             for index, moon in enumerate(MOONS)
@@ -870,8 +1224,11 @@ class SolarSystemApp:
         self.asteroids = self._make_asteroids()
         self.trails = [[] for _ in PLANETS]
         self.speed = 1.0
+        self.time_scale_index = 0
         self.zoom = 1.0
         self.focus_mode = False
+        self.show_moons = True
+        self.show_small_bodies = True
         self.camera_focus_x = 0.0
         self.camera_focus_y = 0.0
         self.camera_zoom = 1.0
@@ -884,17 +1241,26 @@ class SolarSystemApp:
         self.selected = index
         moon = MOONS_BY_ID.get(index) if isinstance(index, str) else None
         if moon is not None:
+            self.sidebar_category = "moons"
             self.focus_mode = True
             self.zoom = 3.2
-        if index == ASTEROID_BELT:
+        elif isinstance(index, str) and index in SMALL_BODIES_BY_ID:
+            self.sidebar_category = "small_bodies"
+            self.focus_mode = True
+            self.zoom = 1.5
+        elif index == ASTEROID_BELT:
+            self.sidebar_category = "small_bodies"
             self.focus_mode = False
             self.zoom = 1.0
-        elif self.focus_mode and moon is None:
-            self.zoom = 2.2
+        else:
+            self.sidebar_category = "planets"
+            if self.focus_mode and moon is None:
+                self.zoom = 2.2
 
     def _show_tour_step(self) -> None:
         self.tour_elapsed = 0.0
         self.selected = None if self.tour_index == 0 else self.tour_index - 1
+        self.sidebar_category = "planets"
         self.focus_mode = True
         self.zoom = 2.2
 
@@ -954,6 +1320,11 @@ class SolarSystemApp:
             if isinstance(self.selected, str)
             else None
         )
+        small_body = (
+            SMALL_BODIES_BY_ID.get(self.selected)
+            if isinstance(self.selected, str)
+            else None
+        )
         focus_index = (
             moon.planet_index
             if moon is not None
@@ -968,6 +1339,11 @@ class SolarSystemApp:
             )
             target_y = planet.orbit_radius * math.sin(
                 self.phases[focus_index]
+            )
+        elif self.focus_mode and small_body is not None:
+            target_x, target_y = self._small_body_position(
+                small_body,
+                self.small_body_mean_anomalies[small_body.identifier],
             )
 
         factor = 1.0 - math.exp(-dt / 0.45)
@@ -987,6 +1363,19 @@ class SolarSystemApp:
         return moving
 
     def _handle_click(self, position: tuple[int, int]) -> None:
+        for rect, category in self.visibility_rects:
+            if rect.collidepoint(position):
+                if category == "moons":
+                    self.show_moons = not self.show_moons
+                else:
+                    self.show_small_bodies = not self.show_small_bodies
+                return
+        for rect, category in self.category_rects:
+            if rect.collidepoint(position):
+                self.sidebar_category = (
+                    None if self.sidebar_category == category else category
+                )
+                return
         for rect, index in self.list_rects:
             if rect.collidepoint(position):
                 self._select(index)
@@ -1019,6 +1408,8 @@ class SolarSystemApp:
                     self.speed = min(4.0, round(self.speed + 0.2, 1))
                 elif key == "language":
                     self._toggle_language()
+                elif key == "time_scale":
+                    self._cycle_time_scale()
                 return
         scene_position = (position[0] - self.scene_rect.left, position[1] - self.scene_rect.top)
         for x, y, radius, index in reversed(self.hit_targets):
@@ -1048,6 +1439,8 @@ class SolarSystemApp:
         elif key == pygame.K_f:
             self.focus_mode = not self.focus_mode
             self.zoom = 2.2 if self.focus_mode else 1.0
+        elif key == pygame.K_t:
+            self._cycle_time_scale()
         elif key == pygame.K_r:
             self._reset()
         elif key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):
@@ -1085,23 +1478,7 @@ class SolarSystemApp:
                     self._handle_key(event.key)
 
             if not self.paused:
-                self.phases = [
-                    (phase + math.tau * dt * self.speed / planet.visual_orbit_seconds) % math.tau
-                    for phase, planet in zip(self.phases, PLANETS)
-                ]
-                for moon in MOONS:
-                    self.moon_phases[moon.identifier] = (
-                        self.moon_phases[moon.identifier]
-                        + math.tau * dt * self.speed / moon.visual_orbit_seconds
-                    ) % math.tau
-                for asteroid in self.asteroids:
-                    asteroid.phase = (
-                        asteroid.phase
-                        + math.tau * dt * self.speed / asteroid.visual_orbit_seconds
-                    ) % math.tau
-                for trail, phase in zip(self.trails, self.phases):
-                    trail.append(phase)
-                    del trail[:-36]
+                self._advance_orbits(dt)
             if self.tour_active and not self.tour_paused:
                 self.tour_elapsed += dt
                 if self.tour_elapsed >= TOUR_STEP_SECONDS:
