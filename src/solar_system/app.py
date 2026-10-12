@@ -16,6 +16,7 @@ MUTED = (145, 164, 188)
 ACCENT = (105, 210, 255)
 SUN_GLOW_SCALE = 1.45
 SUN_MIN_ORBIT_CLEARANCE = 8
+JASON_MISSION_DURATION_DAYS = 259.0
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,7 @@ SIDEBAR_CATEGORIES = (
     ("planets", "Planets"),
     ("moons", "Moons"),
     ("small_bodies", "Small bodies"),
+    ("mission", "Mission"),
 )
 TOUR_FACTS = (
     "The Sun is a star at the centre of our Solar System. Sunlight takes about 8 minutes and 20 seconds to reach Earth.",
@@ -157,6 +159,25 @@ TRANSLATIONS = {
     "Planets": "Πλανήτες",
     "Moons": "Φεγγάρια",
     "Small bodies": "Μικρά σώματα",
+    "Mission": "Αποστολή",
+    "Jason's mission": "Αποστολή του Ιάσονα",
+    "Jason's mission · Argo": "Αποστολή Ιάσονα · Αργώ",
+    "Argo": "Αργώ",
+    "Earth to Mars": "Γη προς Άρη",
+    "Start mission": "Έναρξη αποστολής",
+    "Pause mission": "Παύση αποστολής",
+    "Resume mission": "Συνέχεια αποστολής",
+    "Reset mission": "Επαναφορά αποστολής",
+    "Mission complete": "Η αποστολή ολοκληρώθηκε",
+    "Mission ready": "Η αποστολή είναι έτοιμη",
+    "Estimated trip: 259 days": "Εκτιμώμενο ταξίδι: 259 ημέρες",
+    "Fixed estimate; schematic route": "Σταθερή εκτίμηση· σχηματική διαδρομή",
+    "Departure": "Αναχώρηση",
+    "Cruise": "Ταξίδι",
+    "Mars approach": "Προσέγγιση Άρη",
+    "Stage": "Στάδιο",
+    "Mission time": "Χρόνος αποστολής",
+    "days": "ημέρες",
     "ON": "ΝΑΙ",
     "OFF": "ΟΧΙ",
     "Asteroid Belt": "Ζώνη αστεροειδών",
@@ -357,6 +378,14 @@ class SolarSystemApp:
         self.sidebar_category: str | None = "planets"
         self.show_moons = True
         self.show_small_bodies = True
+        self.show_mission = True
+        self.show_mission = True
+        self.mission_started = False
+        self.mission_active = False
+        self.mission_elapsed_days = 0.0
+        self.mission_earth_phase = 0.0
+        self.mission_mars_arrival_phase = 0.0
+        self.mission_control_rects: dict[str, pygame.Rect] = {}
         self.sidebar_details_top = 0
         self.asteroid_belt_hit_area = (0.0, 0.0, 0.0, 0.0)
         self.buttons: dict[str, pygame.Rect] = {}
@@ -495,9 +524,107 @@ class SolarSystemApp:
                 asteroid.phase
                 + math.tau * simulated_days / asteroid.orbital_period_days
             ) % math.tau
+        self._advance_mission(simulated_days)
         for trail, phase in zip(self.trails, self.phases):
             trail.append(phase)
             del trail[:-36]
+
+    def _advance_mission(self, simulated_days: float) -> None:
+        if not self.mission_active:
+            return
+        self.mission_elapsed_days = min(
+            JASON_MISSION_DURATION_DAYS,
+            self.mission_elapsed_days + simulated_days,
+        )
+        if self.mission_elapsed_days >= JASON_MISSION_DURATION_DAYS:
+            self.mission_active = False
+
+    def _mission_progress(self) -> float:
+        return min(
+            1.0,
+            self.mission_elapsed_days / JASON_MISSION_DURATION_DAYS,
+        )
+
+    def _mission_stage(self) -> str:
+        progress = self._mission_progress()
+        if progress >= 1.0:
+            return "Mission complete"
+        if progress < 0.1:
+            return "Departure"
+        if progress < 0.85:
+            return "Cruise"
+        return "Mars approach"
+
+    def _toggle_mission(self) -> None:
+        if self.mission_active:
+            self.mission_active = False
+            return
+        if self.mission_elapsed_days >= JASON_MISSION_DURATION_DAYS:
+            self._reset_mission()
+        if not self.mission_started:
+            self.mission_earth_phase = self.phases[2]
+            self.mission_mars_arrival_phase = (
+                self.phases[3]
+                + math.tau
+                * JASON_MISSION_DURATION_DAYS
+                / PLANETS[3].orbital_period_days
+            ) % math.tau
+            self.mission_started = True
+        self.mission_active = True
+
+    def _reset_mission(self) -> None:
+        self.mission_started = False
+        self.mission_active = False
+        self.mission_elapsed_days = 0.0
+        self.mission_earth_phase = 0.0
+        self.mission_mars_arrival_phase = 0.0
+
+    def _mission_route_points(
+        self, solar_x: float, solar_y: float, scale: float
+    ) -> list[tuple[int, int]]:
+        earth = PLANETS[2]
+        mars = PLANETS[3]
+        start = (
+            solar_x + earth.orbit_radius * math.cos(self.mission_earth_phase) * scale,
+            solar_y + earth.orbit_radius * math.sin(self.mission_earth_phase) * scale,
+        )
+        destination = (
+            solar_x + mars.orbit_radius * math.cos(self.mission_mars_arrival_phase) * scale,
+            solar_y + mars.orbit_radius * math.sin(self.mission_mars_arrival_phase) * scale,
+        )
+        chord_x = destination[0] - start[0]
+        chord_y = destination[1] - start[1]
+        chord_length = math.hypot(chord_x, chord_y)
+        if chord_length == 0:
+            return [tuple(map(round, start))]
+        normal = (-chord_y / chord_length, chord_x / chord_length)
+        arc = min(chord_length * 0.22, 34 * scale)
+        control_one = (
+            start[0] + chord_x / 3 + normal[0] * arc,
+            start[1] + chord_y / 3 + normal[1] * arc,
+        )
+        control_two = (
+            start[0] + chord_x * 2 / 3 + normal[0] * arc,
+            start[1] + chord_y * 2 / 3 + normal[1] * arc,
+        )
+        points = []
+        for step in range(41):
+            t = step / 40
+            inverse_t = 1 - t
+            x = (
+                inverse_t**3 * start[0]
+                + 3 * inverse_t**2 * t * control_one[0]
+                + 3 * inverse_t * t**2 * control_two[0]
+                + t**3 * destination[0]
+            )
+            y = (
+                inverse_t**3 * start[1]
+                + 3 * inverse_t**2 * t * control_one[1]
+                + 3 * inverse_t * t**2 * control_two[1]
+                + t**3 * destination[1]
+            )
+            points.append((round(x), round(y)))
+        return points
 
     def _tr(self, text: str) -> str:
         if self.language == "el":
@@ -568,6 +695,7 @@ class SolarSystemApp:
         self.list_rects = []
         self.category_rects = []
         self.visibility_rects = []
+        self.mission_control_rects = {}
         list_top = 140 if self.compact_sidebar else 151
         row_spacing = 18 if self.compact_sidebar else 29
         row_height = 18 if self.compact_sidebar else 26
@@ -612,6 +740,7 @@ class SolarSystemApp:
             visible = (
                 self.show_moons if category == "moons"
                 else self.show_small_bodies if category == "small_bodies"
+                else self.show_mission if category == "mission"
                 else None
             )
             if visible is not None:
@@ -622,7 +751,7 @@ class SolarSystemApp:
                     border_radius=6,
                 )
                 self._draw_centered(
-                    self._tr("ON" if visible else "OFF"),
+                    "ON" if visible else "OFF",
                     visibility_rect,
                     ACCENT if visible else MUTED,
                     self.tiny_font,
@@ -690,7 +819,7 @@ class SolarSystemApp:
                         )
                         self.list_rects.append((rect, moon.identifier))
                         y += row_spacing
-            else:
+            elif category == "small_bodies":
                 small_body_entries: tuple[tuple[str, str], ...] = (
                     *((body.identifier, body.name) for body in SMALL_BODIES),
                     (ASTEROID_BELT, "Asteroid Belt"),
@@ -712,15 +841,148 @@ class SolarSystemApp:
                     )
                     self.list_rects.append((rect, body_id))
                     y += row_spacing
+            elif self.show_mission:
+                self._draw_text(
+                    "Jason's mission · Argo",
+                    (20, y + 3),
+                    ACCENT,
+                    self.small_font,
+                )
+                y += row_spacing
+                self._draw_text(
+                    "Earth to Mars",
+                    (24, y + 3),
+                    TEXT,
+                    self.small_font,
+                )
+                y += row_spacing
+                self._draw_text(
+                    "Estimated trip: 259 days",
+                    (24, y + 3),
+                    MUTED,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                self._draw_text(
+                    "Fixed estimate; schematic route",
+                    (24, y + 3),
+                    MUTED,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                self._draw_text(
+                    f"{self._tr('Stage')}: {self._tr(self._mission_stage())}",
+                    (24, y + 3),
+                    ACCENT,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                progress_percent = round(self._mission_progress() * 100)
+                self._draw_text(
+                    f"{self._tr('Mission time')}: "
+                    f"{self.mission_elapsed_days:.0f} / "
+                    f"{JASON_MISSION_DURATION_DAYS:.0f} "
+                    f"{self._tr('days')} ({progress_percent}%)",
+                    (24, y + 3),
+                    MUTED,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                progress_rect = pygame.Rect(24, y, self.sidebar_width - 48, 6)
+                pygame.draw.rect(
+                    self.screen, (24, 42, 65), progress_rect, border_radius=3
+                )
+                progress_width = round(
+                    progress_rect.width * self._mission_progress()
+                )
+                if progress_width:
+                    pygame.draw.rect(
+                        self.screen,
+                        ACCENT,
+                        pygame.Rect(
+                            progress_rect.left,
+                            progress_rect.top,
+                            progress_width,
+                            progress_rect.height,
+                        ),
+                        border_radius=3,
+                    )
+                y += row_spacing
+                button_width = self.sidebar_width - 32
+                mission_button = pygame.Rect(
+                    20, y, button_width, row_height + 2
+                )
+                reset_button = pygame.Rect(
+                    20,
+                    y,
+                    button_width,
+                    row_height + 2,
+                )
+                self.mission_control_rects = {
+                    "toggle": mission_button,
+                    "reset": reset_button,
+                }
+                mission_label = (
+                    "Pause mission"
+                    if self.mission_active
+                    else "Resume mission"
+                    if self.mission_started
+                    and self.mission_elapsed_days < JASON_MISSION_DURATION_DAYS
+                    else "Start mission"
+                )
+                pygame.draw.rect(
+                    self.screen,
+                    PANEL_LIGHT if self.mission_active else (18, 31, 49),
+                    mission_button,
+                    border_radius=8,
+                )
+                pygame.draw.rect(
+                    self.screen,
+                    (39, 57, 78),
+                    mission_button,
+                    1,
+                    border_radius=8,
+                )
+                self._draw_centered(
+                    mission_label,
+                    mission_button,
+                    ACCENT if self.mission_active else TEXT,
+                    self.tiny_font,
+                )
+                y += row_spacing
+                reset_button.top = y
+                pygame.draw.rect(
+                    self.screen,
+                    (18, 31, 49),
+                    reset_button,
+                    border_radius=8,
+                )
+                pygame.draw.rect(
+                    self.screen,
+                    (39, 57, 78),
+                    reset_button,
+                    1,
+                    border_radius=8,
+                )
+                self._draw_centered(
+                    "Reset mission",
+                    reset_button,
+                    TEXT,
+                    self.tiny_font,
+                )
+                y += row_spacing
+            else:
+                self.mission_control_rects = {}
 
-        details_top = y + (6 if self.compact_sidebar else 10)
+        details_top = y + (2 if self.compact_sidebar else 10)
         self.sidebar_details_top = details_top
-        pygame.draw.line(
-            self.screen,
-            (32, 49, 71),
-            (16, details_top),
-            (self.sidebar_width - 16, details_top),
-        )
+        if self.sidebar_category != "mission":
+            pygame.draw.line(
+                self.screen,
+                (32, 49, 71),
+                (16, details_top),
+                (self.sidebar_width - 16, details_top),
+            )
         if self.selected == ASTEROID_BELT:
             selected_name = "Asteroid Belt"
             description = ASTEROID_BELT_DESCRIPTION
@@ -751,31 +1013,32 @@ class SolarSystemApp:
         title_offset = 10 if self.compact_sidebar else 15
         description_offset = 31 if self.compact_sidebar else 42
         facts_offset = 73 if self.compact_sidebar else 104
-        self._draw_text(selected_name, (18, details_top + title_offset), TEXT, self.font)
-        if self.tour_active:
-            description = TOUR_FACTS[self.tour_index]
-        description_line_count = self._draw_wrapped(
-            description,
-            18,
-            details_top + description_offset,
-            self.sidebar_width - 38,
-            MUTED,
-        )
-        line_spacing = 14 if self.compact_sidebar else 17
-        facts_offset = max(
-            facts_offset,
-            description_offset + description_line_count * line_spacing + 3,
-        )
-        fact_y = details_top + facts_offset
-        for fact in fact_lines:
-            fact_line_count = self._draw_wrapped(
-                fact,
+        if self.sidebar_category != "mission":
+            self._draw_text(selected_name, (18, details_top + title_offset), TEXT, self.font)
+            if self.tour_active:
+                description = TOUR_FACTS[self.tour_index]
+            description_line_count = self._draw_wrapped(
+                description,
                 18,
-                fact_y,
+                details_top + description_offset,
                 self.sidebar_width - 38,
-                (192, 206, 224),
+                MUTED,
             )
-            fact_y += fact_line_count * line_spacing + 2
+            line_spacing = 14 if self.compact_sidebar else 17
+            facts_offset = max(
+                facts_offset,
+                description_offset + description_line_count * line_spacing + 3,
+            )
+            fact_y = details_top + facts_offset
+            for fact in fact_lines:
+                fact_line_count = self._draw_wrapped(
+                    fact,
+                    18,
+                    fact_y,
+                    self.sidebar_width - 38,
+                    (192, 206, 224),
+                )
+                fact_y += fact_line_count * line_spacing + 2
 
         pygame.draw.rect(self.screen, PANEL, self.footer_rect)
         pygame.draw.line(self.screen, (32, 49, 71), (0, self.footer_rect.top), (self.width, self.footer_rect.top))
@@ -1195,6 +1458,47 @@ class SolarSystemApp:
                 )
                 self.hit_targets.append((x, y, radius + 7, body.identifier))
 
+        if self.show_mission and self.mission_started:
+            route = self._mission_route_points(solar_x, solar_y, scale)
+            pygame.draw.lines(scene_surface, (61, 121, 165), False, route, 2)
+            progress = self._mission_progress()
+            route_position = progress * (len(route) - 1)
+            route_index = min(int(route_position), len(route) - 2)
+            interpolation = route_position - route_index
+            ship_x = route[route_index][0] + (
+                route[route_index + 1][0] - route[route_index][0]
+            ) * interpolation
+            ship_y = route[route_index][1] + (
+                route[route_index + 1][1] - route[route_index][1]
+            ) * interpolation
+            tangent_x = route[route_index + 1][0] - route[route_index][0]
+            tangent_y = route[route_index + 1][1] - route[route_index][1]
+            tangent_length = max(1.0, math.hypot(tangent_x, tangent_y))
+            forward = (tangent_x / tangent_length, tangent_y / tangent_length)
+            side = (-forward[1], forward[0])
+            ship_size = 7
+            ship_points = [
+                (
+                    round(ship_x + forward[0] * ship_size),
+                    round(ship_y + forward[1] * ship_size),
+                ),
+                (
+                    round(ship_x - forward[0] * ship_size * 0.7 + side[0] * ship_size * 0.55),
+                    round(ship_y - forward[1] * ship_size * 0.7 + side[1] * ship_size * 0.55),
+                ),
+                (
+                    round(ship_x - forward[0] * ship_size * 0.7 - side[0] * ship_size * 0.55),
+                    round(ship_y - forward[1] * ship_size * 0.7 - side[1] * ship_size * 0.55),
+                ),
+            ]
+            pygame.draw.polygon(scene_surface, ACCENT, ship_points)
+            pygame.draw.circle(
+                scene_surface,
+                (226, 242, 255),
+                (round(ship_x), round(ship_y)),
+                2,
+            )
+
         self.screen.blit(scene_surface, scene.topleft)
         self._draw_text(
             "REFERENCE DATA  ·  NOT TO SCALE  ·  ACCELERATED ORBITS",
@@ -1218,6 +1522,7 @@ class SolarSystemApp:
 
     def _reset(self) -> None:
         self._stop_tour()
+        self._reset_mission()
         self.phases = [index * 0.73 for index in range(len(PLANETS))]
         self.small_body_mean_anomalies = {
             body.identifier: index * math.tau / len(SMALL_BODIES)
@@ -1373,14 +1678,23 @@ class SolarSystemApp:
             if rect.collidepoint(position):
                 if category == "moons":
                     self.show_moons = not self.show_moons
-                else:
+                elif category == "small_bodies":
                     self.show_small_bodies = not self.show_small_bodies
+                else:
+                    self.show_mission = not self.show_mission
                 return
         for rect, category in self.category_rects:
             if rect.collidepoint(position):
                 self.sidebar_category = (
                     None if self.sidebar_category == category else category
                 )
+                return
+        for control, rect in self.mission_control_rects.items():
+            if rect.collidepoint(position):
+                if control == "toggle":
+                    self._toggle_mission()
+                else:
+                    self._reset_mission()
                 return
         for rect, index in self.list_rects:
             if rect.collidepoint(position):

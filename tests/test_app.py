@@ -1,6 +1,7 @@
 import math
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -179,6 +180,149 @@ class SolarSystemAppTests(unittest.TestCase):
         self.app._handle_click(small_body_category.center)
         self.app._draw()
         self.assertTrue(any(entry == "pluto" for _, entry in self.app.list_rects))
+
+    def test_jason_mission_uses_simulation_time_and_can_pause_resume_reset(self) -> None:
+        self.app._draw()
+        mission_category = next(
+            rect
+            for rect, category in self.app.category_rects
+            if category == "mission"
+        )
+        self.app._handle_click(mission_category.center)
+        self.app._draw()
+        self.assertIn("toggle", self.app.mission_control_rects)
+
+        self.app._handle_click(self.app.mission_control_rects["toggle"].center)
+        self.assertTrue(self.app.mission_started)
+        self.assertTrue(self.app.mission_active)
+        self.assertEqual(self.app._mission_progress(), 0.0)
+        self.assertEqual(self.app._mission_stage(), "Departure")
+        start_earth_phase = self.app.mission_earth_phase
+        start_mars_arrival_phase = self.app.mission_mars_arrival_phase
+        route = self.app._mission_route_points(0.0, 0.0, 1.0)
+        self.assertEqual(len(route), 41)
+        self.assertNotEqual(route[0], route[-1])
+        self.assertEqual(self.app.mission_earth_phase, start_earth_phase)
+        self.assertEqual(self.app.mission_mars_arrival_phase, start_mars_arrival_phase)
+
+        self.app.time_scale_index = 1
+        self.app._advance_orbits(2.0)
+        self.assertEqual(self.app.mission_elapsed_days, 60.0)
+        self.assertAlmostEqual(self.app._mission_progress(), 60 / 259)
+        self.assertEqual(self.app._mission_stage(), "Cruise")
+        self.app._draw()
+        self.app._handle_click(self.app.mission_control_rects["toggle"].center)
+        self.assertFalse(self.app.mission_active)
+        self.app._advance_orbits(1.0)
+        self.assertEqual(self.app.mission_elapsed_days, 60.0)
+
+        self.app._draw()
+        self.app._handle_click(self.app.mission_control_rects["toggle"].center)
+        self.assertTrue(self.app.mission_active)
+        self.app._advance_orbits(7.0)
+        self.assertEqual(self.app.mission_elapsed_days, 259.0)
+        self.assertFalse(self.app.mission_active)
+        self.assertEqual(self.app._mission_progress(), 1.0)
+        self.assertEqual(self.app._mission_stage(), "Mission complete")
+        self.app._draw()
+        self.assertEqual(self.app._tr("Mission complete"), "Mission complete")
+
+        self.app._handle_click(self.app.mission_control_rects["reset"].center)
+        self.assertFalse(self.app.mission_started)
+        self.assertEqual(self.app.mission_elapsed_days, 0.0)
+
+    def test_mission_stage_and_progress_are_localized(self) -> None:
+        self.app.mission_elapsed_days = 230.0
+        self.assertEqual(self.app._mission_stage(), "Mars approach")
+        self.assertAlmostEqual(self.app._mission_progress(), 230 / 259)
+
+        self.app.language = "el"
+        self.assertEqual(self.app._tr(self.app._mission_stage()), "Προσέγγιση Άρη")
+        self.assertEqual(self.app._tr("Fixed estimate; schematic route"),
+                         "Σταθερή εκτίμηση· σχηματική διαδρομή")
+
+    def test_mission_visibility_hides_route_and_controls(self) -> None:
+        self.app._draw()
+        mission_visibility = next(
+            rect
+            for rect, category in self.app.visibility_rects
+            if category == "mission"
+        )
+        self.app._handle_click(mission_visibility.center)
+        self.assertFalse(self.app.show_mission)
+
+        self.app.sidebar_category = "mission"
+        self.app.mission_started = True
+        self.app.mission_active = True
+        self.app._advance_orbits(1.0)
+        self.assertEqual(self.app.mission_elapsed_days, 1.0)
+        with patch("pygame.draw.lines", wraps=pygame.draw.lines) as draw_lines:
+            self.app._draw()
+            self.assertEqual(draw_lines.call_count, 0)
+            self.assertFalse(self.app.mission_control_rects)
+
+            mission_visibility = next(
+                rect
+                for rect, category in self.app.visibility_rects
+                if category == "mission"
+            )
+            self.app._handle_click(mission_visibility.center)
+            self.app._draw()
+            self.assertTrue(self.app.show_mission)
+            self.assertIn("toggle", self.app.mission_control_rects)
+            self.assertGreater(draw_lines.call_count, 0)
+
+    def test_mission_controls_fit_minimum_sidebar_in_both_languages(self) -> None:
+        self.app._layout((900, 700))
+        self.app.sidebar_category = "mission"
+        original_draw_text = self.app._draw_text
+        for language in ("en", "el"):
+            with self.subTest(language=language):
+                self.app.language = language
+                rendered_lines: list[tuple[str, int, int]] = []
+
+                def capture_text(
+                    text: str,
+                    position: tuple[int, int],
+                    color: tuple[int, int, int] = (232, 240, 251),
+                    font: pygame.font.Font | None = None,
+                ) -> None:
+                    selected_font = font or self.app.font
+                    if (
+                        76 <= position[1] < self.app.sidebar_rect.bottom
+                        and position[0] < self.app.sidebar_rect.right
+                    ):
+                        rendered_lines.append(
+                            (
+                                text,
+                                position[0],
+                                selected_font.size(self.app._tr(text))[0],
+                            )
+                        )
+                    original_draw_text(text, position, color, font)
+
+                self.app._draw_text = capture_text
+                self.app._draw()
+                self.app._draw_text = original_draw_text
+                for text, x, width in rendered_lines:
+                    self.assertLessEqual(
+                        x + width,
+                        self.app.sidebar_rect.right - 12,
+                        f"{text!r} exceeds sidebar in {language}",
+                    )
+                for label in (
+                    "Start mission",
+                    "Pause mission",
+                    "Resume mission",
+                    "Reset mission",
+                ):
+                    self.assertLessEqual(
+                        self.app.tiny_font.size(self.app._tr(label))[0] + 8,
+                        max(rect.width for rect in self.app.mission_control_rects.values()),
+                        f"{label} does not fit in {language}",
+                    )
+                for rect in self.app.mission_control_rects.values():
+                    self.assertTrue(self.app.sidebar_rect.contains(rect))
 
     def test_selecting_moon_opens_grouped_moons_category(self) -> None:
         self.app._select("europa")
