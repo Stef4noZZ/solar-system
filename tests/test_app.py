@@ -1,7 +1,7 @@
 import math
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -1201,6 +1201,53 @@ class SolarSystemAppTests(unittest.TestCase):
                             self.app.sidebar_rect.bottom - 6,
                             f"card text exceeds sidebar height at {language}",
                         )
+
+    def test_planet_card_details_scroll_inside_sidebar_viewport(self) -> None:
+        self.app._layout((900, 700))
+        self.app._select(7)
+        with patch.object(
+            self.app,
+            "_facts_for_selection",
+            return_value=("Extended information for this selected body.",) * 10,
+        ):
+            self.app._draw()
+            self.assertGreater(self.app.sidebar_detail_scroll_max, 0)
+            initial_scroll = self.app.sidebar_detail_scroll
+            initial_zoom = self.app.zoom
+
+            self.app._handle_wheel(
+                -1, self.app.sidebar_detail_viewport.center
+            )
+
+            self.assertGreater(self.app.sidebar_detail_scroll, initial_scroll)
+            self.assertEqual(self.app.zoom, initial_zoom)
+            self.app._handle_wheel(
+                -100,
+                self.app.sidebar_detail_viewport.center,
+            )
+            self.assertEqual(
+                self.app.sidebar_detail_scroll,
+                self.app.sidebar_detail_scroll_max,
+            )
+            self.app._draw()
+            self.app._handle_wheel(
+                100,
+                self.app.sidebar_detail_viewport.center,
+            )
+            self.assertEqual(self.app.sidebar_detail_scroll, 0)
+
+    def test_orbit_toggle_also_hides_scene_names(self) -> None:
+        label_font = self.app.label_font
+        recording_font = Mock(wraps=label_font)
+        self.app.label_font = recording_font
+        self.app.show_orbits = False
+        self.app._draw_scene()
+        self.assertEqual(recording_font.render.call_count, 0)
+
+        self.app.show_orbits = True
+        self.app._draw_scene()
+        self.assertGreater(recording_font.render.call_count, 0)
+        self.app.label_font = label_font
 
     def test_reset_restores_simulation_defaults(self) -> None:
         self.app.speed = 3.8

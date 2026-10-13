@@ -48,6 +48,8 @@ solar-system
 - Select Earth, Jupiter, or Saturn to reveal featured moons; click a moon to focus on it.
 - Use the guided-tour controls to visit the Sun and planets.
 - Choose **Planet Focus** to center a selected planet; use the mouse wheel to zoom.
+- Switch **Orbits & trails** off to hide both orbital paths and object name labels. Text in a selected body's information card can be scrolled with the mouse wheel while the pointer is over the card; the scrollbar shows the current position.
+- Interface text has slightly larger sizing, with bold headings and controls for easier reading.
 - Choose the time scale in the header (1 day, 30 days, or 1 Earth year per real-time second); **T** cycles through the options. Use the lower-right **+/-** buttons to adjust the speed multiplier; the readout shows both the multiplier and the effective days per second.
 - Use **Space** to pause/resume, **O** to toggle orbit trails, **F** to toggle focus, **R** to reset the simulation, and **Home** to reset the view.
 - The window adapts its layout and enforces a minimum size of 900 × 700 pixels to keep controls accessible.

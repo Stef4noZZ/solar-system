@@ -317,7 +317,7 @@ TRANSLATIONS = {
     "Orbits & trails": "Τροχιές και ίχνη",
     "Planet Focus": "Εστίαση σε πλανήτη",
     "Follow Argo": "Εστίαση στην Αργώ",
-    "Stop following": "Διακοπή παρακολούθησης",
+    "Stop following": "Διακοπή εστίασης",
     "ARGO FOLLOWING": "ΠΑΡΑΚΟΛΟΥΘΗΣΗ ΑΡΓΩΣ",
     "Time: 1 day/s": "Χρόνος: 1 ημέρα/δευτ.",
     "Time: 30 days/s": "Χρόνος: 30 ημέρες/δευτ.",
@@ -384,11 +384,16 @@ class SolarSystemApp:
         self.language = "en"
         self.screen = pygame.display.set_mode((1280, 800), pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("segoeui", 16)
-        self.small_font = pygame.font.SysFont("segoeui", 13)
-        self.tiny_font = pygame.font.SysFont("segoeui", 11)
-        self.timeline_font = pygame.font.SysFont("segoeui", 8)
-        self.title_font = pygame.font.SysFont("segoeui", 22, bold=True)
+        self.font = pygame.font.SysFont("segoeui", 17)
+        self.small_font = pygame.font.SysFont("segoeui", 14)
+        self.tiny_font = pygame.font.SysFont("segoeui", 12)
+        self.timeline_font = pygame.font.SysFont("segoeui", 9)
+        self.title_font = pygame.font.SysFont("segoeui", 23, bold=True)
+        self.button_font = pygame.font.SysFont("segoeui", 13, bold=True)
+        self.sidebar_title_font = pygame.font.SysFont(
+            "segoeui", 15, bold=True
+        )
+        self.label_font = pygame.font.SysFont("segoeui", 12, bold=True)
         self.running = True
         self.paused = False
         self.show_orbits = True
@@ -442,6 +447,9 @@ class SolarSystemApp:
         self.mission_destination_rects: dict[str, pygame.Rect] = {}
         self.mission_control_rects: dict[str, pygame.Rect] = {}
         self.sidebar_details_top = 0
+        self.sidebar_detail_scroll = 0
+        self.sidebar_detail_scroll_max = 0
+        self.sidebar_detail_viewport = pygame.Rect(0, 0, 0, 0)
         self.asteroid_belt_hit_area = (0.0, 0.0, 0.0, 0.0)
         self.buttons: dict[str, pygame.Rect] = {}
         self._layout((1280, 800))
@@ -1080,6 +1088,7 @@ class SolarSystemApp:
 
     def _toggle_language(self) -> None:
         self.language = "el" if self.language == "en" else "en"
+        self.sidebar_detail_scroll = 0
         pygame.display.set_caption(self._tr("Solar System"))
 
     def _draw_text(
@@ -1109,7 +1118,7 @@ class SolarSystemApp:
         color = PANEL_LIGHT if active else (18, 31, 49)
         pygame.draw.rect(self.screen, color, rect, border_radius=8)
         pygame.draw.rect(self.screen, (39, 57, 78), rect, 1, border_radius=8)
-        self._draw_centered(label, rect, ACCENT if active else TEXT, self.small_font)
+        self._draw_centered(label, rect, ACCENT if active else TEXT, self.button_font)
 
     def _draw_ui(self) -> None:
         pygame.draw.rect(self.screen, BACKGROUND, self.header_rect)
@@ -1137,7 +1146,9 @@ class SolarSystemApp:
         )
 
         pygame.draw.rect(self.screen, PANEL, self.sidebar_rect)
-        self._draw_text("MISSION CONTROL", (18, 92), ACCENT, self.tiny_font)
+        self._draw_text(
+            "MISSION CONTROL", (18, 92), ACCENT, self.label_font
+        )
         self._draw_text("Select a body or orbiting moon", (18, 112), TEXT, self.small_font)
         self.list_rects = []
         self.category_rects = []
@@ -1176,7 +1187,7 @@ class SolarSystemApp:
                 ("- " if expanded else "+ ") + self._tr(label),
                 (20, y + 3),
                 ACCENT if expanded else TEXT,
-                self.small_font,
+                self.button_font,
             )
             self.category_rects.append((category_rect, category))
             visibility_rect = pygame.Rect(
@@ -1409,7 +1420,7 @@ class SolarSystemApp:
                     MUTED,
                 )
                 y += explanation_rows * (
-                    14 if self.compact_sidebar else 17
+                    17 if self.compact_sidebar else 18
                 )
                 if self.mission_started:
                     if self._mission_progress() >= 1.0:
@@ -1598,35 +1609,107 @@ class SolarSystemApp:
             selected_name = PLANETS[self.selected].name
             description = PLANETS[self.selected].description
             fact_lines = self._facts_for_selection()
-        title_offset = 10 if self.compact_sidebar else 15
+        title_offset = 4 if self.compact_sidebar else 15
         description_offset = 31 if self.compact_sidebar else 42
         facts_offset = 73 if self.compact_sidebar else 104
         if self.sidebar_category != "mission":
-            self._draw_text(selected_name, (18, details_top + title_offset), TEXT, self.font)
+            title_y = min(
+                details_top + title_offset,
+                self.sidebar_rect.bottom
+                - 6
+                - self.sidebar_title_font.get_height(),
+            )
+            self._draw_text(
+                selected_name,
+                (18, title_y),
+                TEXT,
+                self.sidebar_title_font,
+            )
             if self.tour_active:
                 description = TOUR_FACTS[self.tour_index]
-            description_line_count = self._draw_wrapped(
-                description,
-                18,
-                details_top + description_offset,
-                self.sidebar_width - 38,
-                MUTED,
+            line_spacing = 17 if self.compact_sidebar else 18
+            max_text_width = self.sidebar_width - 38
+            description_lines = self._wrapped_text_lines(
+                description, max_text_width
             )
-            line_spacing = 14 if self.compact_sidebar else 17
             facts_offset = max(
                 facts_offset,
-                description_offset + description_line_count * line_spacing + 3,
+                description_offset + len(description_lines) * line_spacing + 3,
             )
-            fact_y = details_top + facts_offset
+            wrapped_facts = [
+                self._wrapped_text_lines(fact, max_text_width)
+                for fact in fact_lines
+            ]
+            viewport = pygame.Rect(
+                12,
+                details_top + description_offset,
+                self.sidebar_width - 24,
+                max(
+                    0,
+                    self.sidebar_rect.bottom
+                    - 8
+                    - (details_top + description_offset),
+                ),
+            )
+            self.sidebar_detail_viewport = viewport
+            content_bottom = details_top + facts_offset + sum(
+                len(lines) * line_spacing + 2 for lines in wrapped_facts
+            )
+            self.sidebar_detail_scroll_max = max(
+                0, content_bottom - viewport.bottom
+            )
+            self.sidebar_detail_scroll = min(
+                self.sidebar_detail_scroll,
+                self.sidebar_detail_scroll_max,
+            )
+            previous_clip = self.screen.get_clip()
+            self.screen.set_clip(viewport)
+            self._draw_wrapped(
+                description,
+                18,
+                details_top + description_offset - self.sidebar_detail_scroll,
+                max_text_width,
+                MUTED,
+            )
+            fact_y = details_top + facts_offset - self.sidebar_detail_scroll
             for fact in fact_lines:
                 fact_line_count = self._draw_wrapped(
                     fact,
                     18,
                     fact_y,
-                    self.sidebar_width - 38,
+                    max_text_width,
                     (192, 206, 224),
                 )
                 fact_y += fact_line_count * line_spacing + 2
+            self.screen.set_clip(previous_clip)
+            if self.sidebar_detail_scroll_max:
+                track = pygame.Rect(
+                    self.sidebar_rect.right - 8,
+                    viewport.top,
+                    3,
+                    viewport.height,
+                )
+                thumb_height = max(
+                    20,
+                    round(
+                        track.height
+                        * viewport.height
+                        / max(viewport.height, content_bottom - viewport.top)
+                    ),
+                )
+                thumb_travel = track.height - thumb_height
+                thumb_top = track.top + round(
+                    thumb_travel
+                    * self.sidebar_detail_scroll
+                    / self.sidebar_detail_scroll_max
+                )
+                pygame.draw.rect(self.screen, (24, 42, 65), track, border_radius=2)
+                pygame.draw.rect(
+                    self.screen,
+                    ACCENT,
+                    pygame.Rect(track.left, thumb_top, track.width, thumb_height),
+                    border_radius=2,
+                )
 
         pygame.draw.rect(self.screen, PANEL, self.footer_rect)
         pygame.draw.line(self.screen, (32, 49, 71), (0, self.footer_rect.top), (self.width, self.footer_rect.top))
@@ -1701,24 +1784,33 @@ class SolarSystemApp:
         max_width: int,
         color: tuple[int, int, int],
     ) -> int:
-        words = self._tr(text).split()
-        line = ""
+        lines = self._wrapped_text_lines(text, max_width)
         line_y = y
-        line_count = 0
-        line_spacing = 14 if self.compact_sidebar else 17
+        line_spacing = 17 if self.compact_sidebar else 18
+        clip = self.screen.get_clip()
+        for line in lines:
+            if (
+                line_y >= clip.top
+                and line_y + self.tiny_font.get_height() <= clip.bottom
+            ):
+                self._draw_text(line, (x, line_y), color, self.tiny_font)
+            line_y += line_spacing
+        return len(lines)
+
+    def _wrapped_text_lines(self, text: str, max_width: int) -> list[str]:
+        words = self._tr(text).split()
+        lines: list[str] = []
+        line = ""
         for word in words:
             candidate = f"{line} {word}".strip()
             if self.small_font.size(candidate)[0] > max_width and line:
-                self._draw_text(line, (x, line_y), color, self.tiny_font)
-                line_y += line_spacing
-                line_count += 1
+                lines.append(line)
                 line = word
             else:
                 line = candidate
         if line:
-            self._draw_text(line, (x, line_y), color, self.tiny_font)
-            line_count += 1
-        return line_count
+            lines.append(line)
+        return lines
 
     def _facts_for_selection(self) -> tuple[str, ...]:
         if self.selected is None:
@@ -2164,11 +2256,14 @@ class SolarSystemApp:
                     round(belt_radius),
                     1,
                 )
-            label = self.tiny_font.render(self._tr("ASTEROID BELT"), True, ACCENT)
-            scene_surface.blit(
-                label,
-                (round(solar_x + belt_outer_radius), round(solar_y)),
-            )
+            if self.show_orbits:
+                label = self.label_font.render(
+                    self._tr("ASTEROID BELT"), True, ACCENT
+                )
+                scene_surface.blit(
+                    label,
+                    (round(solar_x + belt_outer_radius), round(solar_y)),
+                )
 
         if self.show_orbits:
             for planet in PLANETS:
@@ -2235,17 +2330,18 @@ class SolarSystemApp:
             )
         pygame.draw.circle(scene_surface, (255, 201, 92), (round(solar_x), round(solar_y)), sun_radius)
         pygame.draw.circle(scene_surface, (255, 235, 173), (round(solar_x), round(solar_y)), sun_radius, 1)
-        sun_label = self.tiny_font.render(
-            self._tr("The Sun"),
-            True,
-            TEXT if self.selected is None else MUTED,
-        )
-        scene_surface.blit(
-            sun_label,
-            sun_label.get_rect(
-                midtop=(round(solar_x), round(solar_y + sun_radius + 5))
-            ),
-        )
+        if self.show_orbits:
+            sun_label = self.label_font.render(
+                self._tr("The Sun"),
+                True,
+                TEXT if self.selected is None else MUTED,
+            )
+            scene_surface.blit(
+                sun_label,
+                sun_label.get_rect(
+                    midtop=(round(solar_x), round(solar_y + sun_radius + 5))
+                ),
+            )
         self.hit_targets = [(solar_x, solar_y, sun_radius + 8, None)]
 
         for index, planet in enumerate(PLANETS):
@@ -2277,16 +2373,20 @@ class SolarSystemApp:
                 or is_mission_origin
             ):
                 pygame.draw.circle(scene_surface, ACCENT, (round(x), round(y)), radius + 5, 1)
-            label = self.tiny_font.render(
-                self._tr(planet.name),
-                True,
-                TEXT
-                if index == self.selected
-                or index == selected_host_index
-                or is_mission_origin
-                else MUTED,
-            )
-            scene_surface.blit(label, (round(x + radius + 5), round(y - label.get_height() / 2)))
+            if self.show_orbits:
+                label = self.label_font.render(
+                    self._tr(planet.name),
+                    True,
+                    TEXT
+                    if index == self.selected
+                    or index == selected_host_index
+                    or is_mission_origin
+                    else MUTED,
+                )
+                scene_surface.blit(
+                    label,
+                    (round(x + radius + 5), round(y - label.get_height() / 2)),
+                )
             self.hit_targets.append((x, y, radius + 9, index))
             for moon in MOONS:
                 if (
@@ -2326,15 +2426,16 @@ class SolarSystemApp:
                         moon_radius + 4,
                         1,
                     )
-                moon_label = self.tiny_font.render(
-                    self._tr(moon.name),
-                    True,
-                    TEXT if self.selected == moon.identifier else MUTED,
-                )
-                scene_surface.blit(
-                    moon_label,
-                    (round(moon_x + moon_radius + 3), round(moon_y)),
-                )
+                if self.show_orbits:
+                    moon_label = self.label_font.render(
+                        self._tr(moon.name),
+                        True,
+                        TEXT if self.selected == moon.identifier else MUTED,
+                    )
+                    scene_surface.blit(
+                        moon_label,
+                        (round(moon_x + moon_radius + 3), round(moon_y)),
+                    )
                 self.hit_targets.append(
                     (moon_x, moon_y, moon_radius + 7, moon.identifier)
                 )
@@ -2377,15 +2478,16 @@ class SolarSystemApp:
                         radius + 4,
                         1,
                     )
-                label = self.tiny_font.render(
-                    self._tr(body.name),
-                    True,
-                    TEXT if self.selected == body.identifier else MUTED,
-                )
-                scene_surface.blit(
-                    label,
-                    (round(x + radius + 3), round(y - label.get_height() / 2)),
-                )
+                if self.show_orbits:
+                    label = self.label_font.render(
+                        self._tr(body.name),
+                        True,
+                        TEXT if self.selected == body.identifier else MUTED,
+                    )
+                    scene_surface.blit(
+                        label,
+                        (round(x + radius + 3), round(y - label.get_height() / 2)),
+                    )
                 self.hit_targets.append((x, y, radius + 7, body.identifier))
 
         show_alignment = (
@@ -2472,14 +2574,14 @@ class SolarSystemApp:
                 "ARGO FOLLOWING",
                 (scene.right - 150, scene.top + 13),
                 ACCENT,
-                self.tiny_font,
+                self.label_font,
             )
         elif self.focus_mode:
             self._draw_text(
                 "PLANET FOCUS",
                 (scene.right - 130, scene.top + 13),
                 ACCENT,
-                self.tiny_font,
+                self.label_font,
             )
 
     def _draw(self) -> None:
@@ -2514,6 +2616,7 @@ class SolarSystemApp:
 
     def _select(self, index: int | str | None, from_tour: bool = False) -> None:
         self._stop_argo_follow()
+        self.sidebar_detail_scroll = 0
         if self.tour_active and not from_tour:
             self.tour_active = False
             self.tour_paused = False
@@ -2536,6 +2639,21 @@ class SolarSystemApp:
             self.sidebar_category = "planets"
             if self.focus_mode and moon is None:
                 self.zoom = 2.2
+
+    def _handle_wheel(
+        self, amount: int, position: tuple[int, int]
+    ) -> None:
+        if (
+            self.sidebar_category != "mission"
+            and self.sidebar_detail_scroll_max > 0
+            and self.sidebar_detail_viewport.collidepoint(position)
+        ):
+            self.sidebar_detail_scroll = min(
+                self.sidebar_detail_scroll_max,
+                max(0, self.sidebar_detail_scroll - amount * 30),
+            )
+        elif self.scene_rect.collidepoint(position):
+            self.zoom = min(4.0, max(0.65, self.zoom * (1.15**amount)))
 
     def _show_tour_step(self) -> None:
         self._stop_argo_follow()
@@ -2777,11 +2895,11 @@ class SolarSystemApp:
                     if event.button == 1:
                         self._handle_click(event.pos)
                     elif event.button == 4:
-                        self.zoom = min(4.0, self.zoom * 1.15)
+                        self._handle_wheel(1, event.pos)
                     elif event.button == 5:
-                        self.zoom = max(0.65, self.zoom / 1.15)
+                        self._handle_wheel(-1, event.pos)
                 elif event.type == pygame.MOUSEWHEEL:
-                    self.zoom = min(4.0, max(0.65, self.zoom * (1.15 ** event.y)))
+                    self._handle_wheel(event.y, pygame.mouse.get_pos())
                 elif event.type == pygame.KEYDOWN:
                     self._handle_key(event.key)
 
