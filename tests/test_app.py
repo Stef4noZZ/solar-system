@@ -49,6 +49,46 @@ class SolarSystemAppTests(unittest.TestCase):
                 self.app._draw()
                 self.assertEqual(self.app.selected, selection)
 
+    def test_sphere_rendering_adds_surface_shading_and_body_details(self) -> None:
+        for kind, color in (
+            ("Earth", (75, 159, 255)),
+            ("Jupiter", (213, 167, 126)),
+            ("Moon", (220, 227, 235)),
+        ):
+            with self.subTest(kind=kind):
+                surface = pygame.Surface((80, 80))
+                surface.fill((0, 0, 0))
+                self.app._draw_sphere(surface, (40, 40), 24, color, kind)
+                rendered_colors = {
+                    surface.get_at((x, y))[:3]
+                    for x in range(16, 65)
+                    for y in range(16, 65)
+                    if surface.get_at((x, y))[:3] != (0, 0, 0)
+                }
+                self.assertGreaterEqual(len(rendered_colors), 8)
+
+    def test_argo_is_a_detailed_oriented_ship_that_scales_with_zoom(self) -> None:
+        surface = pygame.Surface((120, 120))
+        with patch(
+            "pygame.draw.polygon", wraps=pygame.draw.polygon
+        ) as draw_polygon:
+            self.app._draw_argo(surface, (60, 60), (1.0, 0.0), 1.0)
+        self.assertGreaterEqual(draw_polygon.call_count, 3)
+        base_hull = draw_polygon.call_args_list[1].args[2]
+        base_width = max(point[0] for point in base_hull) - min(
+            point[0] for point in base_hull
+        )
+
+        with patch(
+            "pygame.draw.polygon", wraps=pygame.draw.polygon
+        ) as draw_polygon:
+            self.app._draw_argo(surface, (60, 60), (0.0, 1.0), 4.0)
+        zoomed_hull = draw_polygon.call_args_list[1].args[2]
+        zoomed_width = max(point[1] for point in zoomed_hull) - min(
+            point[1] for point in zoomed_hull
+        )
+        self.assertGreater(zoomed_width, base_width)
+
     def test_sidebar_categories_filter_and_select_bodies(self) -> None:
         self.app._draw()
         categories = {
@@ -654,13 +694,23 @@ class SolarSystemAppTests(unittest.TestCase):
         ):
             self.app.show_orbits = False
             self.app._draw()
-            draw_lines.assert_not_called()
-            self.assertEqual(draw_ship.call_count, 1)
+            self.assertFalse(
+                any(
+                    call.args[1] == (61, 121, 165)
+                    for call in draw_lines.call_args_list
+                )
+            )
+            self.assertGreaterEqual(draw_ship.call_count, 3)
 
             self.app.show_orbits = True
             self.app._draw()
-            self.assertGreater(draw_lines.call_count, 0)
-            self.assertEqual(draw_ship.call_count, 2)
+            self.assertTrue(
+                any(
+                    call.args[1] == (61, 121, 165)
+                    for call in draw_lines.call_args_list
+                )
+            )
+            self.assertGreaterEqual(draw_ship.call_count, 6)
 
         self.app.mission_elapsed_days = self.app._mission_transfer_days()
         with patch(
@@ -685,9 +735,24 @@ class SolarSystemAppTests(unittest.TestCase):
             )
 
     def test_mission_stage_and_progress_are_localized(self) -> None:
+        self.assertIsNone(self.app._mission_timeline_index())
+        self.assertEqual(
+            self.app._mission_explanation(),
+            "Idealized Hohmann model; not a real flight plan.",
+        )
         self.app.mission_started = True
+        self.assertEqual(self.app._mission_timeline_index(), 0)
+        self.assertEqual(
+            self.app._mission_explanation(),
+            "Waiting for the planets to reach launch alignment.",
+        )
         self.app.mission_launched = True
         self.app.mission_elapsed_days = 230.0
+        self.assertEqual(self.app._mission_timeline_index(), 3)
+        self.assertEqual(
+            self.app._mission_explanation(),
+            "Final approach and capture are schematic.",
+        )
         self.assertEqual(self.app._mission_stage(), "Mars approach")
         self.assertAlmostEqual(
             self.app._mission_progress(),
@@ -707,6 +772,31 @@ class SolarSystemAppTests(unittest.TestCase):
         self.assertEqual(
             self.app._tr("Argo has arrived"),
             "Άφιξη της Αργώς",
+        )
+        self.assertEqual(self.app._tr("Near"), "Προσ.")
+        self.assertEqual(
+            self.app._tr("Final approach and capture are schematic."),
+            "Η τελική προσέγγιση και η σύλληψη είναι σχηματικές.",
+        )
+
+    def test_mission_timeline_tracks_launch_cruise_and_arrival(self) -> None:
+        self.app.mission_started = True
+        self.app.mission_launched = True
+        self.app.mission_elapsed_days = 0.0
+        self.assertEqual(self.app._mission_timeline_index(), 1)
+
+        self.app.mission_elapsed_days = self.app._mission_transfer_days() * 0.5
+        self.assertEqual(self.app._mission_timeline_index(), 2)
+        self.assertEqual(
+            self.app._mission_explanation(),
+            "Route is idealized; progress follows the transfer estimate.",
+        )
+
+        self.app.mission_elapsed_days = self.app._mission_transfer_days()
+        self.assertEqual(self.app._mission_timeline_index(), 4)
+        self.assertEqual(
+            self.app._mission_explanation(),
+            "Arrival is illustrative; Argo leaves the transfer path.",
         )
 
     def test_mission_visibility_hides_route_and_controls(self) -> None:
@@ -953,7 +1043,20 @@ class SolarSystemAppTests(unittest.TestCase):
         )
 
     def test_layout_has_no_overlapping_bottom_controls(self) -> None:
-        control_keys = ("play", "reset", "orbits", "focus", "view", "slower", "faster")
+        control_keys = (
+            "play",
+            "reset",
+            "orbits",
+            "focus",
+            "view",
+            "slower",
+            "faster",
+            "tour",
+            "tour_previous",
+            "tour_next",
+            "tour_stop",
+            "follow_argo",
+        )
 
         for size in ((1280, 800), (1024, 768), (960, 720), (900, 700)):
             with self.subTest(size=size):
@@ -967,6 +1070,78 @@ class SolarSystemAppTests(unittest.TestCase):
                             ),
                             f"{first} overlaps {second} at {size}",
                         )
+
+    def test_argo_follow_tracks_flight_and_restores_previous_view(self) -> None:
+        self.app.zoom = 1.4
+        self.app.focus_mode = True
+        self.app.phases[3] = (
+            self.app.phases[2] + self.app._mission_required_phase()
+        ) % math.tau
+        self.app._toggle_mission()
+        self.assertTrue(self.app.mission_launched)
+        self.app._draw()
+
+        follow_button = self.app.buttons["follow_argo"]
+        self.app._handle_click(follow_button.center)
+
+        self.assertTrue(self.app.follow_argo)
+        self.assertFalse(self.app.focus_mode)
+        self.assertEqual(self.app.zoom, 2.6)
+        self.assertEqual(self.app.selected, 2)
+
+        self.app.mission_elapsed_days = self.app._mission_transfer_days() / 2
+        expected_position, _ = self.app._mission_argo_pose(0.0, 0.0, 1.0)
+        self.app.camera_focus_x = expected_position[0] + 100
+        self.app.camera_focus_y = expected_position[1] + 100
+        self.app._update_camera(10.0)
+        self.assertAlmostEqual(self.app.camera_focus_x, expected_position[0], places=2)
+        self.assertAlmostEqual(self.app.camera_focus_y, expected_position[1], places=2)
+
+        self.app._draw()
+        self.app._handle_click(follow_button.center)
+        self.assertFalse(self.app.follow_argo)
+        self.assertEqual(self.app.zoom, 1.4)
+        self.assertTrue(self.app.focus_mode)
+
+    def test_argo_follow_stops_on_arrival_and_mission_reset(self) -> None:
+        self.app.phases[3] = (
+            self.app.phases[2] + self.app._mission_required_phase()
+        ) % math.tau
+        self.app._toggle_mission()
+        self.app._toggle_argo_follow()
+        self.assertTrue(self.app.follow_argo)
+
+        self.app._advance_mission(self.app._mission_transfer_days())
+        self.assertFalse(self.app.follow_argo)
+        self.assertEqual(self.app.zoom, 1.0)
+
+        self.app._reset_mission()
+        self.assertFalse(self.app.mission_started)
+
+    def test_reset_view_stops_argo_follow(self) -> None:
+        self.app.phases[3] = (
+            self.app.phases[2] + self.app._mission_required_phase()
+        ) % math.tau
+        self.app._toggle_mission()
+        self.app._toggle_argo_follow()
+        self.assertTrue(self.app.follow_argo)
+
+        self.app._handle_click(self.app.buttons["view"].center)
+
+        self.assertFalse(self.app.follow_argo)
+        self.assertFalse(self.app.focus_mode)
+        self.assertEqual(self.app.zoom, 1.0)
+
+    def test_argo_follow_button_label_fits_in_both_languages(self) -> None:
+        button = self.app.buttons["follow_argo"]
+        for language in ("en", "el"):
+            self.app.language = language
+            for label in ("Follow Argo", "Stop following"):
+                with self.subTest(language=language, label=label):
+                    self.assertLessEqual(
+                        self.app.small_font.size(self.app._tr(label))[0],
+                        button.width - 16,
+                    )
 
     def test_planet_cards_draw_in_minimum_layout_in_both_languages(self) -> None:
         self.app._layout((900, 700))

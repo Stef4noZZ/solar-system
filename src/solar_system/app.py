@@ -206,6 +206,18 @@ TRANSLATIONS = {
     "Cruise": "Ταξίδι",
     "Mars approach": "Προσέγγιση Άρη",
     "Stage": "Στάδιο",
+    "Wait": "Αναμ.",
+    "Launch": "Εκκ.",
+    "Cruise": "Πτήση",
+    "Near": "Προσ.",
+    "Arrive": "Άφιξη",
+    "Idealized Hohmann model; not a real flight plan.": "Απλοποιημένη τροχιά Hohmann, όχι πραγματικό σχέδιο πτήσης.",
+    "Local moon transfer; schematic.": "Σχηματική τοπική πτήση προς φεγγάρι.",
+    "Waiting for the planets to reach launch alignment.": "Αναμονή ευθυγράμμισης για την εκτόξευση.",
+    "Departure is schematic; time follows the transfer estimate.": "Η αναχώρηση είναι σχηματική· ο χρόνος βασίζεται στην εκτίμηση.",
+    "Route is idealized; progress follows the transfer estimate.": "Η τροχιά είναι απλοποιημένη· η πρόοδος ακολουθεί την εκτίμηση.",
+    "Final approach and capture are schematic.": "Η τελική προσέγγιση και η σύλληψη είναι σχηματικές.",
+    "Arrival is illustrative; Argo leaves the transfer path.": "Η άφιξη είναι ενδεικτική· η Αργώ αποχωρεί από τη διαδρομή.",
     "Mission time": "Χρόνος",
     "days": "ημέρες",
     "ON": "ΝΑΙ",
@@ -304,6 +316,9 @@ TRANSLATIONS = {
     "Reset": "Επαναφορά",
     "Orbits & trails": "Τροχιές και ίχνη",
     "Planet Focus": "Εστίαση σε πλανήτη",
+    "Follow Argo": "Εστίαση στην Αργώ",
+    "Stop following": "Διακοπή παρακολούθησης",
+    "ARGO FOLLOWING": "ΠΑΡΑΚΟΛΟΥΘΗΣΗ ΑΡΓΩΣ",
     "Time: 1 day/s": "Χρόνος: 1 ημέρα/δευτ.",
     "Time: 30 days/s": "Χρόνος: 30 ημέρες/δευτ.",
     "Time: 1 year/s": "Χρόνος: 1 έτος/δευτ.",
@@ -372,6 +387,7 @@ class SolarSystemApp:
         self.font = pygame.font.SysFont("segoeui", 16)
         self.small_font = pygame.font.SysFont("segoeui", 13)
         self.tiny_font = pygame.font.SysFont("segoeui", 11)
+        self.timeline_font = pygame.font.SysFont("segoeui", 8)
         self.title_font = pygame.font.SysFont("segoeui", 22, bold=True)
         self.running = True
         self.paused = False
@@ -413,6 +429,9 @@ class SolarSystemApp:
         self.mission_started = False
         self.mission_active = False
         self.mission_launched = False
+        self.follow_argo = False
+        self.follow_argo_previous_zoom = 1.0
+        self.follow_argo_previous_focus = False
         self.mission_origin = 2
         self.mission_destination: int | str = 3
         self.mission_elapsed_days = 0.0
@@ -513,6 +532,7 @@ class SolarSystemApp:
             "tour_previous": pygame.Rect(176, height - 112, 118, 34),
             "tour_next": pygame.Rect(304, height - 112, 104, 34),
             "tour_stop": pygame.Rect(418, height - 112, 96, 34),
+            "follow_argo": pygame.Rect(width - 194, height - 112, 174, 34),
             "slower": pygame.Rect(width - 207, height - 58, 42, 38),
             "faster": pygame.Rect(width - 54, height - 58, 36, 38),
             "language": pygame.Rect(width - 278, 20, 78, 34),
@@ -583,6 +603,7 @@ class SolarSystemApp:
         )
         if self.mission_elapsed_days >= self._mission_transfer_days():
             self.mission_active = False
+            self._stop_argo_follow()
 
     def _mission_destination_planet_index(self) -> int:
         if isinstance(self.mission_destination, int):
@@ -759,6 +780,37 @@ class SolarSystemApp:
             else "Destination approach"
         )
 
+    def _mission_timeline_index(self) -> int | None:
+        if not self.mission_started:
+            return None
+        if not self.mission_launched:
+            return 0
+        progress = self._mission_progress()
+        if progress >= 1.0:
+            return 4
+        if progress < 0.1:
+            return 1
+        if progress < 0.85:
+            return 2
+        return 3
+
+    def _mission_explanation(self) -> str:
+        if not self.mission_started:
+            return (
+                "Local moon transfer; schematic."
+                if self._mission_is_local_moon()
+                else "Idealized Hohmann model; not a real flight plan."
+            )
+        if not self.mission_launched:
+            return "Waiting for the planets to reach launch alignment."
+        if self._mission_progress() >= 1.0:
+            return "Arrival is illustrative; Argo leaves the transfer path."
+        if self._mission_progress() < 0.1:
+            return "Departure is schematic; time follows the transfer estimate."
+        if self._mission_progress() < 0.85:
+            return "Route is idealized; progress follows the transfer estimate."
+        return "Final approach and capture are schematic."
+
     def _cycle_mission_origin(self, direction: int) -> None:
         if self.mission_started:
             return
@@ -821,6 +873,7 @@ class SolarSystemApp:
         self.mission_active = True
 
     def _reset_mission(self) -> None:
+        self._stop_argo_follow()
         self.mission_started = False
         self.mission_active = False
         self.mission_launched = False
@@ -829,6 +882,51 @@ class SolarSystemApp:
         self.mission_origin_phase = 0.0
         self.mission_destination_arrival_phase = 0.0
         self.mission_moon_arrival_phase = 0.0
+
+    def _mission_argo_pose(
+        self, solar_x: float, solar_y: float, scale: float
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
+        route = self._mission_route_points(solar_x, solar_y, scale)
+        route_position = self._mission_progress() * (len(route) - 1)
+        route_index = min(int(route_position), len(route) - 2)
+        interpolation = route_position - route_index
+        start = route[route_index]
+        end = route[route_index + 1]
+        position = (
+            start[0] + (end[0] - start[0]) * interpolation,
+            start[1] + (end[1] - start[1]) * interpolation,
+        )
+        tangent_x = end[0] - start[0]
+        tangent_y = end[1] - start[1]
+        tangent_length = max(1.0, math.hypot(tangent_x, tangent_y))
+        return position, (tangent_x / tangent_length, tangent_y / tangent_length)
+
+    def _argo_follow_available(self) -> bool:
+        return (
+            self.show_mission
+            and self.mission_started
+            and self.mission_launched
+            and self._mission_progress() < 1.0
+        )
+
+    def _stop_argo_follow(self) -> None:
+        if not self.follow_argo:
+            return
+        self.follow_argo = False
+        self.zoom = self.follow_argo_previous_zoom
+        self.focus_mode = self.follow_argo_previous_focus
+
+    def _toggle_argo_follow(self) -> None:
+        if self.follow_argo:
+            self._stop_argo_follow()
+            return
+        if not self._argo_follow_available():
+            return
+        self.follow_argo_previous_zoom = self.zoom
+        self.follow_argo_previous_focus = self.focus_mode
+        self.follow_argo = True
+        self.focus_mode = False
+        self.zoom = max(self.zoom, 2.6)
 
     def _mission_route_points(
         self, solar_x: float, solar_y: float, scale: float
@@ -1302,6 +1400,17 @@ class SolarSystemApp:
                         self.tiny_font,
                     )
                     y += row_spacing
+                y += self._draw_mission_timeline(y)
+                explanation_rows = self._draw_wrapped(
+                    self._mission_explanation(),
+                    24,
+                    y,
+                    self.sidebar_width - 48,
+                    MUTED,
+                )
+                y += explanation_rows * (
+                    14 if self.compact_sidebar else 17
+                )
                 if self.mission_started:
                     if self._mission_progress() >= 1.0:
                         alignment_text = "Argo has arrived"
@@ -1542,6 +1651,21 @@ class SolarSystemApp:
             tour_text = f"{self._tr('Tour')} {self.tour_index + 1}/{len(TOUR_FACTS)} · {tour_state}"
         else:
             tour_text = self.tour_message
+        if self._argo_follow_available() or self.follow_argo:
+            text_right = self.buttons["follow_argo"].left - 10
+            text_left = self.buttons["tour_stop"].right + 12
+            max_text_width = text_right - text_left
+            while (
+                tour_text
+                and self.tiny_font.size(self._tr(tour_text))[0] > max_text_width
+            ):
+                tour_text = tour_text[:-1]
+        if self._argo_follow_available() or self.follow_argo:
+            self._draw_button(
+                "follow_argo",
+                "Stop following" if self.follow_argo else "Follow Argo",
+                self.follow_argo,
+            )
         self._draw_text(tour_text, (self.buttons["tour_stop"].right + 12, self.height - 102), MUTED, self.tiny_font)
         self._draw_button(
             "play",
@@ -1638,6 +1762,311 @@ class SolarSystemApp:
             f"{self._tr('Temperature')}: {self._tr(planet.average_temperature)}",
             f"{self._tr('Moons')}: {planet.moons}",
         )
+
+    @staticmethod
+    def _shade_color(
+        color: tuple[int, int, int], factor: float
+    ) -> tuple[int, int, int]:
+        return tuple(
+            max(0, min(255, round(channel * factor))) for channel in color
+        )
+
+    @classmethod
+    def _draw_sphere(
+        cls,
+        surface: pygame.Surface,
+        center: tuple[float, float],
+        radius: int,
+        color: tuple[int, int, int],
+        kind: str,
+    ) -> None:
+        x, y = round(center[0]), round(center[1])
+        radius = max(2, radius)
+        pygame.draw.circle(
+            surface, cls._shade_color(color, 0.48), (x, y), radius
+        )
+        pygame.draw.circle(
+            surface,
+            cls._shade_color(color, 0.82),
+            (x - max(1, round(radius * 0.08)), y + round(radius * 0.04)),
+            max(1, radius - 1),
+        )
+        for layer in range(5):
+            highlight_radius = max(
+                1, round(radius * (0.9 - layer * 0.13))
+            )
+            highlight_offset = 0.12 + layer * 0.025
+            pygame.draw.circle(
+                surface,
+                cls._shade_color(color, 0.91 + layer * 0.075),
+                (
+                    x - round(radius * highlight_offset),
+                    y - round(radius * highlight_offset),
+                ),
+                highlight_radius,
+            )
+        if radius < 9:
+            pygame.draw.circle(
+                surface,
+                cls._shade_color(color, 1.34),
+                (x - max(1, radius // 3), y - max(1, radius // 3)),
+                1,
+            )
+            return
+
+        if kind in {"Venus", "Jupiter", "Saturn", "Uranus", "Neptune"}:
+            band_colors = {
+                "Venus": (214, 166, 103),
+                "Jupiter": (166, 119, 82),
+                "Saturn": (184, 158, 111),
+                "Uranus": (92, 171, 179),
+                "Neptune": (58, 91, 194),
+            }
+            band_color = band_colors[kind]
+            spacing = max(4, radius // 3)
+            for band_index, offset_y in enumerate(
+                range(-radius // 2, radius // 2 + 1, spacing)
+            ):
+                half_width = math.sqrt(max(0, radius**2 - offset_y**2))
+                inset = max(1, round(radius * 0.16))
+                pygame.draw.line(
+                    surface,
+                    cls._shade_color(
+                        band_color, 0.78 if band_index % 2 else 1.12
+                    ),
+                    (round(x - half_width + inset), y + offset_y),
+                    (round(x + half_width - inset), y + offset_y),
+                    max(1, radius // 10),
+                )
+            if kind == "Jupiter":
+                spot = pygame.Rect(
+                    round(x + radius * 0.12),
+                    round(y - radius * 0.22),
+                    max(4, round(radius * 0.52)),
+                    max(3, round(radius * 0.24)),
+                )
+                pygame.draw.ellipse(surface, (178, 91, 66), spot)
+                pygame.draw.arc(
+                    surface,
+                    (226, 157, 115),
+                    spot,
+                    0,
+                    math.pi,
+                    max(1, radius // 14),
+                )
+        elif kind == "Earth":
+            continent_color = (73, 160, 119)
+            for points in (
+                ((-0.58, -0.18), (-0.34, -0.48), (-0.12, -0.37), (-0.2, -0.08), (-0.42, 0.02)),
+                ((0.1, -0.06), (0.34, -0.27), (0.55, -0.14), (0.47, 0.12), (0.27, 0.22)),
+                ((-0.02, 0.2), (0.12, 0.13), (0.22, 0.48), (0.09, 0.61)),
+            ):
+                pygame.draw.polygon(
+                    surface,
+                    continent_color,
+                    [
+                        (round(x + px * radius), round(y + py * radius))
+                        for px, py in points
+                    ],
+                )
+        elif kind in {"Mercury", "Mars", "Moon", "Callisto", "Ceres", "Pluto"}:
+            crater_specs = (
+                (-0.38, -0.12, 0.15),
+                (0.28, -0.34, 0.11),
+                (0.22, 0.24, 0.19),
+                (-0.22, 0.48, 0.1),
+            )
+            for crater_x, crater_y, crater_scale in crater_specs:
+                crater_radius = max(1, round(radius * crater_scale))
+                if math.hypot(crater_x, crater_y) + crater_scale >= 0.88:
+                    continue
+                crater_center = (
+                    round(x + crater_x * radius),
+                    round(y + crater_y * radius),
+                )
+                pygame.draw.circle(
+                    surface,
+                    cls._shade_color(color, 0.66),
+                    crater_center,
+                    crater_radius,
+                )
+                pygame.draw.arc(
+                    surface,
+                    cls._shade_color(color, 1.24),
+                    pygame.Rect(
+                        crater_center[0] - crater_radius,
+                        crater_center[1] - crater_radius,
+                        crater_radius * 2,
+                        crater_radius * 2,
+                    ),
+                    math.pi,
+                    math.tau,
+                    1,
+                )
+        elif kind == "Titan":
+            pygame.draw.circle(
+                surface,
+                (255, 207, 130),
+                (x, y),
+                radius - 1,
+                max(1, radius // 9),
+            )
+        elif kind == "Europa":
+            for line_index, offset in enumerate((-0.34, 0.02, 0.3)):
+                start = (
+                    round(x - radius * 0.56),
+                    round(y + radius * offset),
+                )
+                end = (
+                    round(x + radius * 0.5),
+                    round(y + radius * (offset - 0.16)),
+                )
+                pygame.draw.line(
+                    surface,
+                    (143, 102, 107) if line_index % 2 else (205, 158, 149),
+                    start,
+                    end,
+                    max(1, radius // 10),
+                )
+        elif kind == "Io":
+            for spot_x, spot_y, spot_radius in (
+                (-0.35, -0.16, 0.12),
+                (0.22, 0.26, 0.17),
+                (0.34, -0.3, 0.09),
+            ):
+                pygame.draw.circle(
+                    surface,
+                    (177, 101, 67),
+                    (
+                        round(x + spot_x * radius),
+                        round(y + spot_y * radius),
+                    ),
+                    max(1, round(radius * spot_radius)),
+                )
+
+    @staticmethod
+    def _draw_argo(
+        surface: pygame.Surface,
+        center: tuple[float, float],
+        forward: tuple[float, float],
+        zoom: float,
+    ) -> None:
+        side = (-forward[1], forward[0])
+        size = max(8.0, min(15.0, 8.0 + math.log2(max(1.0, zoom)) * 2.0))
+
+        def point(along: float, across: float) -> tuple[int, int]:
+            return (
+                round(
+                    center[0]
+                    + forward[0] * along * size
+                    + side[0] * across * size
+                ),
+                round(
+                    center[1]
+                    + forward[1] * along * size
+                    + side[1] * across * size
+                ),
+            )
+
+        nose = point(1.0, 0.0)
+        stern = point(-0.85, 0.0)
+        pygame.draw.circle(
+            surface,
+            (37, 125, 168),
+            (round(center[0]), round(center[1])),
+            round(size * 1.15),
+        )
+        pygame.draw.polygon(
+            surface,
+            (255, 164, 77),
+            [point(-0.82, -0.18), point(-1.45, 0), point(-0.82, 0.18)],
+        )
+        hull = [
+            point(-0.92, -0.18),
+            point(-0.55, -0.3),
+            point(0.48, -0.22),
+            nose,
+            point(0.48, 0.22),
+            point(-0.55, 0.3),
+            point(-0.92, 0.18),
+        ]
+        pygame.draw.polygon(surface, (194, 137, 75), hull)
+        pygame.draw.lines(surface, (255, 221, 157), True, hull, 1)
+
+        mast_base = point(-0.12, -0.12)
+        mast_top = point(-0.12, -1.02)
+        sail = [
+            point(-0.03, -0.23),
+            point(0.32, -0.82),
+            point(0.48, -0.23),
+        ]
+        pygame.draw.polygon(surface, (105, 210, 255), sail)
+        pygame.draw.lines(surface, (210, 241, 255), True, sail, 1)
+        pygame.draw.line(surface, (246, 221, 174), mast_base, mast_top, 1)
+        pygame.draw.line(
+            surface, (246, 221, 174), mast_top, point(0.58, -0.2), 1
+        )
+        pygame.draw.circle(
+            surface, (255, 241, 205), stern, max(1, round(size * 0.12))
+        )
+
+    def _draw_mission_timeline(self, top: int) -> int:
+        labels = ("Wait", "Launch", "Cruise", "Near", "Arrive")
+        left, right = 24, self.sidebar_width - 24
+        line_y = top + 5
+        first_x, last_x = left + 18, right - 18
+        centers = [
+            round(first_x + (last_x - first_x) * index / (len(labels) - 1))
+            for index in range(len(labels))
+        ]
+        current_step = self._mission_timeline_index()
+        for index in range(len(centers) - 1):
+            pygame.draw.line(
+                self.screen,
+                ACCENT
+                if current_step is not None and index < current_step
+                else (53, 68, 90),
+                (centers[index], line_y),
+                (centers[index + 1], line_y),
+                2,
+            )
+        for index, (label, center_x) in enumerate(zip(labels, centers)):
+            completed = current_step is not None and index < current_step
+            active = index == current_step
+            color = ACCENT if completed else MUTED
+            if active:
+                color = (255, 196, 112)
+            pygame.draw.circle(
+                self.screen,
+                color,
+                (center_x, line_y),
+                4 if active else 3,
+            )
+            if active:
+                pygame.draw.circle(
+                    self.screen,
+                    color,
+                    (center_x, line_y),
+                    6,
+                    1,
+                )
+            slot_left = (
+                left
+                if index == 0
+                else round((centers[index - 1] + center_x) / 2)
+            )
+            slot_right = (
+                right
+                if index == len(labels) - 1
+                else round((center_x + centers[index + 1]) / 2)
+            )
+            self._draw_centered(
+                label,
+                pygame.Rect(slot_left, top + 11, slot_right - slot_left, 12),
+                color,
+                self.timeline_font,
+            )
+        return 25 if self.compact_sidebar else 32
 
     @staticmethod
     def _draw_saturn_rings(
@@ -1833,19 +2262,12 @@ class SolarSystemApp:
             if planet.has_rings:
                 self._draw_saturn_rings(scene_surface, (x, y), radius, front_half=False)
 
-            shadow = tuple(round(channel * 0.48) for channel in planet.color)
-            pygame.draw.circle(scene_surface, shadow, (round(x), round(y)), radius)
-            pygame.draw.circle(
+            self._draw_sphere(
                 scene_surface,
+                (x, y),
+                radius,
                 planet.color,
-                (round(x - radius * 0.12), round(y - radius * 0.1)),
-                max(3, round(radius * 0.86)),
-            )
-            pygame.draw.circle(
-                scene_surface,
-                (255, 255, 255),
-                (round(x - radius * 0.35), round(y - radius * 0.4)),
-                max(1, round(radius * 0.16)),
+                planet.name,
             )
             if planet.has_rings:
                 self._draw_saturn_rings(scene_surface, (x, y), radius, front_half=True)
@@ -1889,11 +2311,12 @@ class SolarSystemApp:
                         ),
                         1,
                     )
-                pygame.draw.circle(
+                self._draw_sphere(
                     scene_surface,
-                    moon.color,
-                    (round(moon_x), round(moon_y)),
+                    (moon_x, moon_y),
                     moon_radius,
+                    moon.color,
+                    moon.name.removeprefix("The "),
                 )
                 if self.selected == moon.identifier:
                     pygame.draw.circle(
@@ -1925,11 +2348,26 @@ class SolarSystemApp:
                 x = solar_x + relative_x * scale
                 y = solar_y + relative_y * scale
                 radius = max(3, round(body.radius * max(scale, 0.72)))
-                pygame.draw.circle(
+                if body.identifier == "halley":
+                    tail_direction = math.atan2(y - solar_y, x - solar_x)
+                    tail_length = max(9, round(radius * 4.5))
+                    tail_start = (round(x), round(y))
+                    tail_end = (
+                        round(x + math.cos(tail_direction) * tail_length),
+                        round(y + math.sin(tail_direction) * tail_length),
+                    )
+                    pygame.draw.line(
+                        scene_surface, (116, 166, 196), tail_start, tail_end, 3
+                    )
+                    pygame.draw.line(
+                        scene_surface, (199, 224, 235), tail_start, tail_end, 1
+                    )
+                self._draw_sphere(
                     scene_surface,
-                    body.color,
-                    (round(x), round(y)),
+                    (x, y),
                     radius,
+                    body.color,
+                    body.name if body.identifier != "halley" else "Comet",
                 )
                 if self.selected == body.identifier:
                     pygame.draw.circle(
@@ -2012,41 +2450,14 @@ class SolarSystemApp:
                         1,
                     )
             else:
-                route_position = progress * (len(route) - 1)
-                route_index = min(int(route_position), len(route) - 2)
-                interpolation = route_position - route_index
-                ship_x = route[route_index][0] + (
-                    route[route_index + 1][0] - route[route_index][0]
-                ) * interpolation
-                ship_y = route[route_index][1] + (
-                    route[route_index + 1][1] - route[route_index][1]
-                ) * interpolation
-                tangent_x = route[route_index + 1][0] - route[route_index][0]
-                tangent_y = route[route_index + 1][1] - route[route_index][1]
-                tangent_length = max(1.0, math.hypot(tangent_x, tangent_y))
-                forward = (tangent_x / tangent_length, tangent_y / tangent_length)
-                side = (-forward[1], forward[0])
-                ship_size = 7
-                ship_points = [
-                    (
-                        round(ship_x + forward[0] * ship_size),
-                        round(ship_y + forward[1] * ship_size),
-                    ),
-                    (
-                        round(ship_x - forward[0] * ship_size * 0.7 + side[0] * ship_size * 0.55),
-                        round(ship_y - forward[1] * ship_size * 0.7 + side[1] * ship_size * 0.55),
-                    ),
-                    (
-                        round(ship_x - forward[0] * ship_size * 0.7 - side[0] * ship_size * 0.55),
-                        round(ship_y - forward[1] * ship_size * 0.7 - side[1] * ship_size * 0.55),
-                    ),
-                ]
-                pygame.draw.polygon(scene_surface, ACCENT, ship_points)
-                pygame.draw.circle(
+                argo_position, forward = self._mission_argo_pose(
+                    solar_x, solar_y, scale
+                )
+                self._draw_argo(
                     scene_surface,
-                    (226, 242, 255),
-                    (round(ship_x), round(ship_y)),
-                    2,
+                    argo_position,
+                    forward,
+                    self.camera_zoom,
                 )
 
         self.screen.blit(scene_surface, scene.topleft)
@@ -2056,7 +2467,14 @@ class SolarSystemApp:
             MUTED,
             self.tiny_font,
         )
-        if self.focus_mode:
+        if self.follow_argo:
+            self._draw_text(
+                "ARGO FOLLOWING",
+                (scene.right - 150, scene.top + 13),
+                ACCENT,
+                self.tiny_font,
+            )
+        elif self.focus_mode:
             self._draw_text(
                 "PLANET FOCUS",
                 (scene.right - 130, scene.top + 13),
@@ -2095,6 +2513,7 @@ class SolarSystemApp:
         self.camera_zoom = 1.0
 
     def _select(self, index: int | str | None, from_tour: bool = False) -> None:
+        self._stop_argo_follow()
         if self.tour_active and not from_tour:
             self.tour_active = False
             self.tour_paused = False
@@ -2119,6 +2538,7 @@ class SolarSystemApp:
                 self.zoom = 2.2
 
     def _show_tour_step(self) -> None:
+        self._stop_argo_follow()
         self.tour_elapsed = 0.0
         self.selected = None if self.tour_index == 0 else self.tour_index - 1
         self.sidebar_category = "planets"
@@ -2193,7 +2613,9 @@ class SolarSystemApp:
             if isinstance(self.selected, int)
             else None
         )
-        if self.focus_mode and focus_index is not None:
+        if self.follow_argo and self._argo_follow_available():
+            (target_x, target_y), _ = self._mission_argo_pose(0.0, 0.0, 1.0)
+        elif self.focus_mode and focus_index is not None:
             planet = PLANETS[focus_index]
             target_x = planet.orbit_radius * math.cos(
                 self.phases[focus_index]
@@ -2232,6 +2654,8 @@ class SolarSystemApp:
                     self.show_small_bodies = not self.show_small_bodies
                 else:
                     self.show_mission = not self.show_mission
+                    if not self.show_mission:
+                        self._stop_argo_follow()
                 return
         for rect, category in self.category_rects:
             if rect.collidepoint(position):
@@ -2270,14 +2694,18 @@ class SolarSystemApp:
                     self._move_tour(1)
                 elif key == "tour_stop":
                     self._stop_tour()
+                elif key == "follow_argo":
+                    self._toggle_argo_follow()
                 elif key == "reset":
                     self._reset()
                 elif key == "orbits":
                     self.show_orbits = not self.show_orbits
                 elif key == "focus":
+                    self._stop_argo_follow()
                     self.focus_mode = not self.focus_mode
                     self.zoom = 2.2 if self.focus_mode else 1.0
                 elif key == "view":
+                    self._stop_argo_follow()
                     self.focus_mode = False
                     self.zoom = 1.0
                 elif key == "slower":
@@ -2315,6 +2743,7 @@ class SolarSystemApp:
         elif key == pygame.K_o:
             self.show_orbits = not self.show_orbits
         elif key == pygame.K_f:
+            self._stop_argo_follow()
             self.focus_mode = not self.focus_mode
             self.zoom = 2.2 if self.focus_mode else 1.0
         elif key == pygame.K_t:
@@ -2326,6 +2755,7 @@ class SolarSystemApp:
         elif key in (pygame.K_MINUS, pygame.K_KP_MINUS):
             self.speed = max(0.2, round(self.speed - 0.2, 1))
         elif key == pygame.K_HOME:
+            self._stop_argo_follow()
             self.focus_mode = False
             self.zoom = 1.0
 
