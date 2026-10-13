@@ -389,7 +389,10 @@ class SolarSystemApp:
         self.tiny_font = pygame.font.SysFont("segoeui", 12)
         self.timeline_font = pygame.font.SysFont("segoeui", 9)
         self.title_font = pygame.font.SysFont("segoeui", 23, bold=True)
-        self.button_font = pygame.font.SysFont("segoeui", 13, bold=True)
+        self.button_font = pygame.font.SysFont("segoeui", 13)
+        self.sidebar_button_font = pygame.font.SysFont(
+            "segoeui", 13, bold=True
+        )
         self.sidebar_title_font = pygame.font.SysFont(
             "segoeui", 15, bold=True
         )
@@ -1187,7 +1190,7 @@ class SolarSystemApp:
                 ("- " if expanded else "+ ") + self._tr(label),
                 (20, y + 3),
                 ACCENT if expanded else TEXT,
-                self.button_font,
+                self.sidebar_button_font,
             )
             self.category_rects.append((category_rect, category))
             visibility_rect = pygame.Rect(
@@ -1715,16 +1718,16 @@ class SolarSystemApp:
         pygame.draw.line(self.screen, (32, 49, 71), (0, self.footer_rect.top), (self.width, self.footer_rect.top))
         self._draw_button(
             "tour",
-            f"▶  {self._tr('Start tour')}"
+            self._tr("Start tour")
             if not self.tour_active
-            else f"▶  {self._tr('Resume tour')}"
+            else self._tr("Resume tour")
             if self.tour_paused
-            else f"Ⅱ  {self._tr('Pause tour')}",
+            else self._tr("Pause tour"),
             self.tour_active and not self.tour_paused,
         )
-        self._draw_button("tour_previous", f"‹ {self._tr('Previous')}")
-        self._draw_button("tour_next", f"{self._tr('Next')} ›")
-        self._draw_button("tour_stop", f"■  {self._tr('Stop')}")
+        self._draw_button("tour_previous", self._tr("Previous"))
+        self._draw_button("tour_next", self._tr("Next"))
+        self._draw_button("tour_stop", self._tr("Stop"))
         if self.tour_active:
             tour_state = (
                 self._tr("Paused")
@@ -1752,10 +1755,10 @@ class SolarSystemApp:
         self._draw_text(tour_text, (self.buttons["tour_stop"].right + 12, self.height - 102), MUTED, self.tiny_font)
         self._draw_button(
             "play",
-            f"▶  {self._tr('Play')}" if self.paused else f"Ⅱ  {self._tr('Pause')}",
+            self._tr("Play") if self.paused else self._tr("Pause"),
             self.paused,
         )
-        self._draw_button("reset", f"↺  {self._tr('Reset')}")
+        self._draw_button("reset", self._tr("Reset"))
         self._draw_button("orbits", self._tr("Orbits & trails"), self.show_orbits)
         self._draw_button("focus", self._tr("Planet Focus"), self.focus_mode)
         self._draw_button("view", self._tr("Reset view"))

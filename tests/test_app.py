@@ -1071,6 +1071,67 @@ class SolarSystemAppTests(unittest.TestCase):
                             f"{first} overlaps {second} at {size}",
                         )
 
+    def test_footer_buttons_use_regular_font_and_text_labels(self) -> None:
+        self.assertFalse(self.app.button_font.get_bold())
+        self.assertTrue(self.app.sidebar_button_font.get_bold())
+
+        original_draw_button = self.app._draw_button
+        for language in ("en", "el"):
+            with self.subTest(language=language):
+                self.app.language = language
+                rendered_labels: dict[str, str] = {}
+
+                def capture_button(
+                    key: str, label: str, active: bool = False
+                ) -> None:
+                    rendered_labels[key] = label
+
+                self.app._draw_button = capture_button
+                self.app.tour_active = False
+                self.app.paused = False
+                self.app._draw_ui()
+                self.assertEqual(
+                    rendered_labels["tour"],
+                    self.app._tr("Start tour"),
+                )
+                self.assertEqual(
+                    rendered_labels["play"],
+                    self.app._tr("Pause"),
+                )
+                self.assertEqual(
+                    rendered_labels["reset"],
+                    self.app._tr("Reset"),
+                )
+                self.assertFalse(
+                    any(
+                        symbol in label
+                        for key in ("tour", "play", "reset")
+                        for label in (rendered_labels[key],)
+                        for symbol in "▶Ⅱ↺"
+                    )
+                )
+
+                self.app.tour_active = True
+                self.app.tour_paused = False
+                self.app.paused = True
+                self.app._draw_ui()
+                self.assertEqual(
+                    rendered_labels["tour"],
+                    self.app._tr("Pause tour"),
+                )
+                self.assertEqual(
+                    rendered_labels["play"],
+                    self.app._tr("Play"),
+                )
+
+                self.app.tour_paused = True
+                self.app._draw_ui()
+                self.assertEqual(
+                    rendered_labels["tour"],
+                    self.app._tr("Resume tour"),
+                )
+                self.app._draw_button = original_draw_button
+
     def test_argo_follow_tracks_flight_and_restores_previous_view(self) -> None:
         self.app.zoom = 1.4
         self.app.focus_mode = True
