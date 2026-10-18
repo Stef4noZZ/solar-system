@@ -164,6 +164,29 @@ export class SolarSystem {
             else this.targetZoom /= (1 + intensity);
             this.targetZoom = Math.max(0.15, Math.min(this.targetZoom, 12.0));
         }, { passive: false });
+
+        this.canvas.addEventListener('dblclick', (e) => {
+            const centerX = this.canvas.width / 2 + this.offsetX;
+            const centerY = this.canvas.height / 2 + this.offsetY;
+
+            // Έλεγχος για διπλό κλικ στον Ήλιο
+            if (Math.hypot(e.clientX - centerX, e.clientY - centerY) <= sunData.radius * this.zoom + 15) {
+                this.focusOnBody(sunData);
+                return;
+            }
+
+            // Έλεγχος για διπλό κλικ σε Πλανήτες
+            for (let i = 0; i < planets.length; i++) {
+                const p = planets[i];
+                const px = centerX + Math.cos(this.planetPhases[i]) * p.orbit * this.zoom;
+                const py = centerY + Math.sin(this.planetPhases[i]) * p.orbit * this.zoom;
+
+                if (Math.hypot(e.clientX - px, e.clientY - py) <= Math.max(p.radius * this.zoom + 10, 20)) {
+                    this.focusOnBody(p);
+                    return;
+                }
+            }
+        });
     }
 
     startMission(originId, destId) {

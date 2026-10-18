@@ -150,6 +150,24 @@ export class SizeComparisonView {
             this.targetOffsetX = mouseX - (mouseX - this.targetOffsetX) * (this.targetZoom / oldZoom);
             this.targetOffsetY = mouseY - (mouseY - this.targetOffsetY) * (this.targetZoom / oldZoom);
         }, { passive: false });
+
+        this.canvas.addEventListener('dblclick', (e) => {
+            const centerX = this.canvas.width / 2 + this.offsetX;
+            const centerY = this.canvas.height / 2 + this.offsetY;
+
+            for (let pos of this.bodyPositions) {
+                const screenX = centerX + pos.x * this.zoom;
+                const screenY = centerY + pos.y * this.zoom;
+                const screenRadius = pos.radius * this.zoom;
+
+                if (Math.hypot(e.clientX - screenX, e.clientY - screenY) <= Math.max(screenRadius + 15, 25)) {
+                    this.targetOffsetX = -pos.x * 3.5; // Κεντράρισμα
+                    this.targetOffsetY = 0;
+                    this.targetZoom = 3.5; // Zoom in
+                    return;
+                }
+            }
+        });
     }
 
     checkClick(clientX, clientY) {
