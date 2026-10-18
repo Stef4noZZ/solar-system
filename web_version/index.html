@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <title>Solar System Explorer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header id="nav-header">
+        <div class="logo" id="app-title">🌌 ΕΞΕΡΕΥΝΗΤΗΣ ΗΛΙΑΚΟΥ ΣΥΣΤΗΜΑΤΟΣ</div>
+        <div class="header-right">
+            <button class="drawer-toggle-btn" id="btnToggleDrawer">📋 <span id="lbl-objects">Σώματα</span></button>
+            <button class="lang-btn" id="btnLang">🇬🇷 EL / EN</button>
+        </div>
+    </header>
+
+    <!-- Vertical Navigation Panel (Right Side) -->
+    <nav id="vertical-nav">
+        <button class="nav-icon-btn active" data-view="solar-view" data-tooltip="Ηλιακό Σύστημα" id="nav-solar">🪐</button>
+        <button class="nav-icon-btn" data-view="compare-view" data-tooltip="Σύγκριση Μεγεθών" id="nav-compare">📏</button>
+        <button class="nav-icon-btn" data-view="game-view" data-tooltip="Mini-Game (Αργώ)" id="nav-game">🚀</button>
+    </nav>
+
+    <!-- 🚀 Mission Control Setup Panel -->
+    <div id="mission-panel">
+        <h3 id="lbl-mission-title">ΑΠΟΣΤΟΛΗ ΙΑΣΟΝΑΣ · ΑΡΓΩ</h3>
+        <div class="form-group">
+            <label id="lbl-origin">Προέλευση:</label>
+            <select id="selectOrigin"></select>
+        </div>
+        <div class="form-group">
+            <label id="lbl-dest">Προορισμός:</label>
+            <select id="selectDest"></select>
+        </div>
+        <button class="ctrl-btn" id="btnStartMission" style="width: 100%; margin-top: 5px;">🚀 Εκτόξευση</button>
+    </div>
+
+    <!-- 🚀 Live Mission HUD Status Card -->
+    <div id="mission-status-card">
+        <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
+        <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
+        <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
+        <div id="mission-days" style="font-size: 11px; color: #91a4bc;">0 / 0 days</div>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="ctrl-btn" id="btnFollowArgo" style="font-size: 11px; flex: 1;">🎯 Follow Argo</button>
+            <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626;">✖</button>
+        </div>
+    </div>
+
+    <!-- Accordion Quick Objects Menu Drawer -->
+    <div id="objects-drawer">
+        <div class="accordion-header" data-target="drawer-stars"><span id="cat-stars">Άστρα</span> <span>▶</span></div>
+        <div class="accordion-content" id="drawer-stars"></div>
+
+        <div class="accordion-header" data-target="drawer-planets"><span id="cat-planets">Πλανήτες</span> <span>▶</span></div>
+        <div class="accordion-content" id="drawer-planets"></div>
+
+        <div class="accordion-header" data-target="drawer-moons"><span id="cat-moons">Δορυφόροι</span> <span>▶</span></div>
+        <div class="accordion-content" id="drawer-moons"></div>
+
+        <div class="accordion-header" data-target="drawer-small"><span id="cat-small">Νάνοι & Κομήτες</span> <span>▶</span></div>
+        <div class="accordion-content" id="drawer-small"></div>
+    </div>
+
+    <main id="app-container">
+        
+        <section id="solar-view" class="view active">
+            <canvas id="solarCanvas"></canvas>
+            
+            <div id="sidebar">
+                <button id="close-btn">✕</button>
+                <h2 id="info-name">-</h2>
+                <p><span class="label" id="lbl-desc">Περιγραφή</span><br><span id="info-desc">-</span></p>
+                <p><span class="label" id="lbl-diam">Διάμετρος</span><br><span id="info-diam">-</span></p>
+                <p><span class="label" id="lbl-temp">Θερμοκρασία</span><br><span id="info-temp">-</span></p>
+                <p><span class="label" id="lbl-moons">Δεδομένα / Φεγγάρια</span><br><span id="info-moons">-</span></p>
+            </div>
+
+            <!-- Bottom Left Controls -->
+            <div id="controls">
+                <button class="ctrl-btn" id="btnPause">Παύση</button>
+                <button class="ctrl-btn" id="btnDirection">⏩ Forward</button>
+                
+                <div class="speed-group">
+                    <button class="step-btn" id="btnSpeedMinus">➖</button>
+                    <span class="speed-display" id="speedDisplay">1d / s</span>
+                    <button class="step-btn" id="btnSpeedPlus">➕</button>
+                </div>
+
+                <button class="ctrl-btn" id="btnOrbits">Τροχιές: ON</button>
+                <button class="ctrl-btn" id="btnReset">Επαναφορά</button>
+            </div>
+
+            <!-- Bottom Right Mission Actions Container -->
+            <div id="bottom-right-actions">
+                <!-- 🚀 Live Mission HUD Status Card -->
+                <div id="mission-status-card">
+                    <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
+                    <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
+                    <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
+                    <div id="mission-days" style="font-size: 11px; color: #91a4bc;">0 / 0 days</div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button class="ctrl-btn" id="btnFollowArgo" style="font-size: 11px; flex: 1;">🎯 Follow Argo</button>
+                        <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626;">✖</button>
+                    </div>
+                </div>
+
+                <button class="ctrl-btn" id="btnToggleMission" style="background: #182a41; border-color: #69d2ff; color: #69d2ff; font-weight: bold; padding: 8px 16px;">🚀 <span id="lbl-mission-btn">Αποστολή</span></button>
+            </div>
+        </section>
+
+        <section id="compare-view" class="view">
+            <div class="placeholder-content">
+                <h2>Σύγκριση Μεγεθών Πλανητών</h2>
+                <p>Εδώ θα μπει το view σύγκρισης!</p>
+            </div>
+        </section>
+
+        <section id="game-view" class="view">
+            <div class="placeholder-content">
+                <h2>Asteroid Belt Dodger · Argo Game</h2>
+                <p>Εδώ θα φτιάξουμε το παιχνίδι με την Αργώ!</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="data.js"></script>
+    <script src="solar.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -179,7 +179,7 @@ TRANSLATIONS = {
     "Small bodies": "Μικρά σώματα",
     "Mission": "Αποστολή",
     "Jason's mission": "Αποστολή του Ιάσονα",
-    "Jason's mission · Argo": "Αποστολή Ιάσονα · Αργώ",
+    "Jason's mission · Argo": "Αποστολή Ιάσονας · Αργώ",
     "Argo": "Αργώ",
     "From": "Από",
     "To": "Προς",
