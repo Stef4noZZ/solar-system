@@ -1,12 +1,21 @@
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-build/
-dist/
-*.egg-info/
-.pytest_cache/
-.coverage
-htmlcov/
+# --- OS & System Files ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- IDEs & Editors ---
+.vscode/
 .idea/
+*.swp
+*.swo
+
+env/
+ENV/
+.env
+
+# --- Web Build / Temporary Files (προαιρετικά αν χρησιμοποιήσετε εργαλεία αργότερα) ---
+node_modules/
+dist/
+build/
+.cache/
