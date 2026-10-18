@@ -89,11 +89,11 @@ body, html {
     opacity: 1;
 }
 
-/* Mission Control Setup Panel */
+/* Mission Control Setup Panel (Πιο αριστερά για να μη χτυπάει τα δεξιά κουμπιά) */
 #mission-panel {
     position: absolute;
     bottom: 80px;
-    right: 80px;
+    right: 85px;
     width: 280px;
     background: rgba(12, 22, 37, 0.95);
     border: 1px solid #182a41;
@@ -131,11 +131,11 @@ body, html {
     outline: none;
 }
 
-/* Mission Live Status HUD Card */
+/* Mission Live Status HUD Card (Πιο αριστερά, έξω από τη ζώνη των navigation icons) */
 #mission-status-card {
     position: absolute;
-    top: 70px;
-    left: 20px;
+    bottom: 80px;
+    right: 85px;
     width: 280px;
     background: rgba(12, 22, 37, 0.92);
     border: 1px solid #2d4a70;
@@ -145,6 +145,7 @@ body, html {
     z-index: 90;
     backdrop-filter: blur(8px);
     display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 #mission-status-card h4 {
     margin: 0 0 8px 0;
@@ -164,6 +165,17 @@ body, html {
     width: 0%;
     background: #69d2ff;
     transition: width 0.2s;
+}
+
+/* Bottom Right Actions Container (Αριστερά από τα navigation icons) */
+#bottom-right-actions {
+    position: absolute;
+    bottom: 20px;
+    right: 85px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
 }
 
 /* Accordion Quick Objects Drawer */

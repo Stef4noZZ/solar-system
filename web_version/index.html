@@ -92,9 +92,21 @@
                 <button class="ctrl-btn" id="btnReset">Επαναφορά</button>
             </div>
 
-            <!-- Bottom Right Mission Button -->
+            <!-- Bottom Right Mission Actions Container -->
             <div id="bottom-right-actions">
-                <button class="drawer-toggle-btn" id="btnToggleMission" style="background: #182a41; border-color: #69d2ff; color: #69d2ff; font-weight: bold;">🚀 <span id="lbl-mission-btn">Αποστολή</span></button>
+                <!-- 🚀 Live Mission HUD Status Card -->
+                <div id="mission-status-card">
+                    <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
+                    <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
+                    <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
+                    <div id="mission-days" style="font-size: 11px; color: #91a4bc;">0 / 0 days</div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button class="ctrl-btn" id="btnFollowArgo" style="font-size: 11px; flex: 1;">🎯 Follow Argo</button>
+                        <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626;">✖</button>
+                    </div>
+                </div>
+
+                <button class="ctrl-btn" id="btnToggleMission" style="background: #182a41; border-color: #69d2ff; color: #69d2ff; font-weight: bold; padding: 8px 16px;">🚀 <span id="lbl-mission-btn">Αποστολή</span></button>
             </div>
         </section>
 
