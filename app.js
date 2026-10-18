@@ -47,6 +47,7 @@ function updateUI() {
     document.getElementById('btnPause').innerText = solarApp.isPaused ? t.resume : t.pause;
     document.getElementById('btnDirection').innerText = solarApp.timeDirection === 1 ? t.forward : t.rewind;
     document.getElementById('btnOrbits').innerText = `${t.orbits}: ${solarApp.showOrbits ? t.on : t.off}`;
+    document.getElementById('btnHabitable').innerText = `${t.habitableZone}: ${solarApp.showHabitableZone ? t.on : t.off}`;
     document.getElementById('btnReset').innerText = t.reset;
 
     document.getElementById('speedDisplay').innerText = solarApp.timeScales[solarApp.timeScaleIndex].label;
@@ -240,6 +241,11 @@ document.getElementById('btnSpeedMinus').addEventListener('click', () => {
 
 document.getElementById('btnOrbits').addEventListener('click', () => {
     solarApp.showOrbits = !solarApp.showOrbits;
+    updateUI();
+});
+
+document.getElementById('btnHabitable').addEventListener('click', () => {
+    solarApp.showHabitableZone = !solarApp.showHabitableZone;
     updateUI();
 });
 

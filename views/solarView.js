@@ -20,6 +20,7 @@ export class SolarSystem {
         this.timeDirection = 1;
         this.isPaused = false;
         this.showOrbits = true;
+        this.showHabitableZone = false;
 
         this.zoom = 0.68;
         this.targetZoom = 0.68;
@@ -464,6 +465,17 @@ export class SolarSystem {
         this.ctx.save();
         this.ctx.translate(this.canvas.width / 2 + this.offsetX, this.canvas.height / 2 + this.offsetY);
         this.ctx.scale(this.zoom, this.zoom);
+        
+        if (this.showHabitableZone) {
+            const habGrad = this.ctx.createRadialGradient(0, 0, 145, 0, 0, 185);
+            habGrad.addColorStop(0, 'rgba(46, 204, 113, 0.0)');
+            habGrad.addColorStop(0.5, 'rgba(46, 204, 113, 0.2)');
+            habGrad.addColorStop(1, 'rgba(46, 204, 113, 0.0)');
+            this.ctx.fillStyle = habGrad;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 185, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
 
         // Ήλιος
         const sunGlow = this.ctx.createRadialGradient(0, 0, sunData.radius * 0.2, 0, 0, sunData.radius * 3.2);
