@@ -1,3 +1,7 @@
+import { translations, planets, moonsData, smallBodies, sunData } from './data.js';
+import { SolarSystem } from './views/solarView.js';
+import { SizeComparisonView } from './views/compareView.js';
+
 const solarApp = new SolarSystem('solarCanvas');
 const compareApp = new SizeComparisonView('compareCanvas');
 
@@ -66,11 +70,7 @@ function populateMissionSelects() {
     originSel.innerHTML = '';
     destSel.innerHTML = '';
 
-    const allBodies = [
-        ...planets,
-        ...moonsData,
-        ...smallBodies
-    ];
+    const allBodies = [...planets, ...moonsData, ...smallBodies];
 
     allBodies.forEach(b => {
         const name = solarApp.getText(b.name);
@@ -259,7 +259,7 @@ document.getElementById('close-btn').addEventListener('click', () => {
     document.getElementById('sidebar').style.display = 'none';
 });
 
-// Vertical Navigation Logic
+// Navigation
 const navButtons = document.querySelectorAll('.nav-icon-btn');
 const views = document.querySelectorAll('.view');
 
