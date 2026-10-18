@@ -1,7 +1,14 @@
 const solarApp = new SolarSystem('solarCanvas');
+const compareApp = new SizeComparisonView('compareCanvas');
+
+let activeView = 'solar-view';
 
 function mainLoop(timestamp) {
-    solarApp.render(timestamp);
+    if (activeView === 'solar-view') {
+        solarApp.render(timestamp);
+    } else if (activeView === 'compare-view') {
+        compareApp.render();
+    }
     requestAnimationFrame(mainLoop);
 }
 requestAnimationFrame(mainLoop);
@@ -11,6 +18,7 @@ let currentLang = 'el';
 function updateUI() {
     const t = translations[currentLang];
     solarApp.setLanguage(currentLang);
+    compareApp.setLanguage(currentLang);
 
     document.getElementById('app-title').innerText = "🌌 " + t.title;
     document.getElementById('lbl-objects').innerText = t.objectsMenu;
@@ -41,10 +49,11 @@ function updateUI() {
 
     document.getElementById('nav-solar').setAttribute('data-tooltip', t.tabSolar);
     document.getElementById('nav-compare').setAttribute('data-tooltip', t.tabCompare);
-    document.getElementById('nav-game').setAttribute('data-tooltip', t.tabGame);
 
     populateMissionSelects();
+    populateCompareSelects();
     populateObjectsDrawer();
+    updateCompareStats();
 }
 
 function populateMissionSelects() {
@@ -73,6 +82,56 @@ function populateMissionSelects() {
     destSel.value = currDest;
 }
 
+function populateCompareSelects() {
+    const compASel = document.getElementById('selectCompA');
+    const compBSel = document.getElementById('selectCompB');
+
+    const currA = compASel.value || "earth";
+    const currB = compBSel.value || "jupiter";
+
+    compASel.innerHTML = '';
+    compBSel.innerHTML = '';
+
+    compareApp.realData.forEach(item => {
+        const name = compareApp.getText(item.name);
+        compASel.appendChild(new Option(name, item.id));
+        compBSel.appendChild(new Option(name, item.id));
+    });
+
+    compASel.value = currA;
+    compBSel.value = currB;
+}
+
+function updateCompareStats() {
+    const idA = document.getElementById('selectCompA').value || "earth";
+    const idB = document.getElementById('selectCompB').value || "jupiter";
+
+    compareApp.setSelection(idA, idB);
+
+    const itemA = compareApp.realData.find(i => i.id === idA);
+    const itemB = compareApp.realData.find(i => i.id === idB);
+
+    if (!itemA || !itemB) return;
+
+    const nameA = compareApp.getText(itemA.name);
+    const nameB = compareApp.getText(itemB.name);
+
+    const ratioDiam = (itemB.diamKm / itemA.diamKm).toFixed(1);
+    const ratioVol = Math.round(Math.pow(itemB.diamKm / itemA.diamKm, 3));
+
+    let msg = "";
+    if (currentLang === 'el') {
+        msg = `Ο <b>${nameB}</b> έχει <b>${ratioDiam}x</b> μεγαλύτερη διάμετρο από τον/τη <b>${nameA}</b> (και χωράει ~<b>${ratioVol.toLocaleString()}</b> φορές τον όγκο του!).`;
+    } else {
+        msg = `<b>${nameB}</b> is <b>${ratioDiam}x</b> larger in diameter than <b>${nameA}</b> (holds ~<b>${ratioVol.toLocaleString()}x</b> its volume!).`;
+    }
+
+    document.getElementById('compare-ratio-text').innerHTML = msg;
+}
+
+document.getElementById('selectCompA').addEventListener('change', updateCompareStats);
+document.getElementById('selectCompB').addEventListener('change', updateCompareStats);
+
 function populateObjectsDrawer() {
     const starsDiv = document.getElementById('drawer-stars');
     const planetsDiv = document.getElementById('drawer-planets');
@@ -95,6 +154,9 @@ function createDrawerItem(body) {
     div.className = 'drawer-item';
     div.innerText = solarApp.getText(body.name);
     div.addEventListener('click', () => {
+        if (activeView !== 'solar-view') {
+            document.getElementById('nav-solar').click();
+        }
         solarApp.focusOnBody(body);
     });
     return div;
@@ -182,7 +244,7 @@ document.getElementById('btnOrbits').addEventListener('click', () => {
 });
 
 document.getElementById('btnReset').addEventListener('click', () => {
-    solarApp.targetZoom = 0.68; // 🎯 Επαναφορά στο ιδανικό αρχικό ζουμ
+    solarApp.targetZoom = 0.68;
     solarApp.targetOffsetX = 0;
     solarApp.targetOffsetY = 0;
     solarApp.focusedTarget = null;
@@ -204,6 +266,8 @@ const views = document.querySelectorAll('.view');
 navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
         const targetViewId = btn.getAttribute('data-view');
+        activeView = targetViewId;
+
         navButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 

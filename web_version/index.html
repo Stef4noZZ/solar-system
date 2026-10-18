@@ -19,7 +19,6 @@
     <nav id="vertical-nav">
         <button class="nav-icon-btn active" data-view="solar-view" data-tooltip="Ηλιακό Σύστημα" id="nav-solar">🪐</button>
         <button class="nav-icon-btn" data-view="compare-view" data-tooltip="Σύγκριση Μεγεθών" id="nav-compare">📏</button>
-        <button class="nav-icon-btn" data-view="game-view" data-tooltip="Mini-Game (Αργώ)" id="nav-game">🚀</button>
     </nav>
 
     <!-- 🚀 Mission Control Setup Panel -->
@@ -34,18 +33,6 @@
             <select id="selectDest"></select>
         </div>
         <button class="ctrl-btn" id="btnStartMission" style="width: 100%; margin-top: 5px;">🚀 Εκτόξευση</button>
-    </div>
-
-    <!-- 🚀 Live Mission HUD Status Card -->
-    <div id="mission-status-card">
-        <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
-        <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
-        <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
-        <div id="mission-days" style="font-size: 11px; color: #91a4bc;">0 / 0 days</div>
-        <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <button class="ctrl-btn" id="btnFollowArgo" style="font-size: 11px; flex: 1;">🎯 Follow Argo</button>
-            <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626;">✖</button>
-        </div>
     </div>
 
     <!-- Accordion Quick Objects Menu Drawer -->
@@ -65,6 +52,7 @@
 
     <main id="app-container">
         
+        <!-- View 1: Solar System -->
         <section id="solar-view" class="view active">
             <canvas id="solarCanvas"></canvas>
             
@@ -94,7 +82,6 @@
 
             <!-- Bottom Right Mission Actions Container -->
             <div id="bottom-right-actions">
-                <!-- 🚀 Live Mission HUD Status Card -->
                 <div id="mission-status-card">
                     <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
                     <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
@@ -110,17 +97,26 @@
             </div>
         </section>
 
+        <!-- View 2: Size Comparison -->
         <section id="compare-view" class="view">
-            <div class="placeholder-content">
-                <h2>Σύγκριση Μεγεθών Πλανητών</h2>
-                <p>Εδώ θα μπει το view σύγκρισης!</p>
-            </div>
-        </section>
-
-        <section id="game-view" class="view">
-            <div class="placeholder-content">
-                <h2>Asteroid Belt Dodger · Argo Game</h2>
-                <p>Εδώ θα φτιάξουμε το παιχνίδι με την Αργώ!</p>
+            <canvas id="compareCanvas"></canvas>
+            
+            <div id="compare-panel">
+                <h3 id="compare-title">📏 Σύγκριση Μεγεθών Σωμάτων</h3>
+                <div class="compare-selectors">
+                    <div>
+                        <label id="lbl-comp-a">Σώμα A:</label>
+                        <select id="selectCompA"></select>
+                    </div>
+                    <div style="align-self: flex-end; font-size: 18px; font-weight: bold; color: #69d2ff;">VS</div>
+                    <div>
+                        <label id="lbl-comp-b">Σώμα B:</label>
+                        <select id="selectCompB"></select>
+                    </div>
+                </div>
+                <div id="compare-stats-box">
+                    <div id="compare-ratio-text">-</div>
+                </div>
             </div>
         </section>
 

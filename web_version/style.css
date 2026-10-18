@@ -89,7 +89,7 @@ body, html {
     opacity: 1;
 }
 
-/* Mission Control Setup Panel (Πιο αριστερά για να μη χτυπάει τα δεξιά κουμπιά) */
+/* Mission Control Setup Panel */
 #mission-panel {
     position: absolute;
     bottom: 80px;
@@ -120,7 +120,7 @@ body, html {
     color: #91a4bc;
     margin-bottom: 4px;
 }
-.form-group select {
+.form-group select, .compare-selectors select {
     width: 100%;
     background: #182a41;
     color: #e8f0fb;
@@ -131,7 +131,7 @@ body, html {
     outline: none;
 }
 
-/* Mission Live Status HUD Card (Πιο αριστερά, έξω από τη ζώνη των navigation icons) */
+/* Mission Live Status HUD Card */
 #mission-status-card {
     position: absolute;
     bottom: 80px;
@@ -167,15 +167,52 @@ body, html {
     transition: width 0.2s;
 }
 
-/* Bottom Right Actions Container (Αριστερά από τα navigation icons) */
-#bottom-right-actions {
+/* Size Comparison Control Panel */
+#compare-panel {
     position: absolute;
-    bottom: 20px;
-    right: 85px;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 480px;
+    background: rgba(12, 22, 37, 0.92);
+    border: 1px solid #182a41;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-sizing: border-box;
     z-index: 90;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+#compare-panel h3 {
+    margin: 0 0 12px 0;
+    color: #69d2ff;
+    font-size: 15px;
+    text-align: center;
+}
+.compare-selectors {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    gap: 15px;
+    align-items: center;
+    justify-content: space-between;
+}
+.compare-selectors div {
+    flex: 1;
+}
+.compare-selectors label {
+    font-size: 12px;
+    color: #91a4bc;
+    display: block;
+    margin-bottom: 4px;
+}
+#compare-stats-box {
+    margin-top: 12px;
+    background: rgba(24, 42, 65, 0.6);
+    border: 1px dashed #2d4a70;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    font-size: 13px;
+    color: #e8f0fb;
 }
 
 /* Accordion Quick Objects Drawer */
@@ -246,7 +283,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 #sidebar {
     position: absolute;
     top: 80px;
-    right: 80px;
+    right: 85px;
     width: 280px;
     background: rgba(12, 22, 37, 0.92);
     border: 1px solid #182a41;
@@ -271,7 +308,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
     cursor: pointer;
 }
 
-/* Bottom Controls & Bottom Right Mission Button */
+/* Bottom Controls & Bottom Right Actions */
 #controls {
     position: absolute;
     bottom: 20px;
@@ -289,8 +326,11 @@ canvas { display: block; width: 100vw; height: 100vh; }
 #bottom-right-actions {
     position: absolute;
     bottom: 20px;
-    right: 80px;
+    right: 85px;
     z-index: 90;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
 }
 .speed-group {
     display: flex;
