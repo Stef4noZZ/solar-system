@@ -526,8 +526,11 @@ export class SolarSystem {
 
         // Μικρά Σώματα
         smallBodies.forEach((sb, i) => {
-            if (this.showOrbits) {
-                this.ctx.strokeStyle = 'rgba(60, 80, 110, 0.35)';
+            const isFocused = this.focusedTarget && this.focusedTarget.type === 'small' && this.focusedTarget.index === i;
+
+            if (this.showOrbits || isFocused) {
+                this.ctx.strokeStyle = isFocused ? 'rgba(105, 210, 255, 0.95)' : 'rgba(60, 80, 110, 0.35)';
+                this.ctx.lineWidth = isFocused ? (2 / this.zoom) : 1;
                 this.ctx.setLineDash([3, 3]);
                 this.ctx.beginPath();
                 this.ctx.arc(0, 0, sb.orbit, 0, Math.PI * 2);
@@ -568,9 +571,11 @@ export class SolarSystem {
 
         // Πλανήτες
         planets.forEach((p, i) => {
-            if (this.showOrbits) {
-                this.ctx.strokeStyle = 'rgba(28, 48, 75, 0.75)';
-                this.ctx.lineWidth = 1 / this.zoom;
+            const isFocused = this.focusedTarget && this.focusedTarget.type === 'planet' && this.focusedTarget.index === i;
+            
+            if (this.showOrbits || isFocused) {
+                this.ctx.strokeStyle = isFocused ? 'rgba(105, 210, 255, 0.95)' : 'rgba(28, 48, 75, 0.75)';
+                this.ctx.lineWidth = isFocused ? (2.5 / this.zoom) : (1 / this.zoom);
                 this.ctx.beginPath();
                 this.ctx.arc(0, 0, p.orbit, 0, Math.PI * 2);
                 this.ctx.stroke();
@@ -644,18 +649,26 @@ export class SolarSystem {
 
             moonsData.filter(m => m.planetId === p.id).forEach(m => {
                 const mIdx = moonsData.indexOf(m);
+                const isMoonFocused = this.focusedTarget && this.focusedTarget.type === 'moon' && this.focusedTarget.index === mIdx;
+
+                // Φωτισμός τροχιάς φεγγαριού αν είναι focused
+                if (isMoonFocused) {
+                    this.ctx.strokeStyle = 'rgba(105, 210, 255, 0.9)';
+                    this.ctx.lineWidth = 1.5 / this.zoom;
+                    this.ctx.beginPath();
+                    this.ctx.arc(px, py, m.orbitDist, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+
                 const mx = px + Math.cos(this.moonPhases[mIdx]) * m.orbitDist;
                 const my = py + Math.sin(this.moonPhases[mIdx]) * m.orbitDist;
 
+                // Σχεδίαση φεγγαριού (αυτό έλειπε!)
                 this.ctx.fillStyle = m.color;
                 this.ctx.beginPath();
                 this.ctx.arc(mx, my, m.radius, 0, Math.PI * 2);
                 this.ctx.fill();
             });
-
-            this.ctx.fillStyle = '#e8f0fb';
-            this.ctx.font = '12px Segoe UI';
-            this.ctx.fillText(this.getText(p.name), px + p.radius + 6, py + 4);
         });
 
         // 🚀 Argo Mission

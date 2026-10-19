@@ -327,6 +327,21 @@ navButtons.forEach(btn => {
 
         views.forEach(v => v.classList.remove('active'));
         document.getElementById(targetViewId).classList.add('active');
+
+        // Έλεγχος εμφάνισης αριστερών εργαλείων (μόνο στο solar-view)
+        const leftToolsBar = document.getElementById('left-tools-bar');
+        const objectsDrawer = document.getElementById('objects-drawer');
+        const missionPanel = document.getElementById('mission-panel');
+
+        if (targetViewId === 'compare-view') {
+            leftToolsBar.style.display = 'none';
+            objectsDrawer.style.display = 'none';
+            missionPanel.style.display = 'none';
+            btnToggleObjects.classList.remove('active');
+            btnToggleMission.classList.remove('active');
+        } else {
+            leftToolsBar.style.display = 'flex';
+        }
     });
 });
 
