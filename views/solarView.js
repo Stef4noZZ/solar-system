@@ -663,12 +663,17 @@ export class SolarSystem {
                 const mx = px + Math.cos(this.moonPhases[mIdx]) * m.orbitDist;
                 const my = py + Math.sin(this.moonPhases[mIdx]) * m.orbitDist;
 
-                // Σχεδίαση φεγγαριού (αυτό έλειπε!)
+                // Σχεδίαση φεγγαριού
                 this.ctx.fillStyle = m.color;
                 this.ctx.beginPath();
                 this.ctx.arc(mx, my, m.radius, 0, Math.PI * 2);
                 this.ctx.fill();
             });
+
+            // 🏷️ Σχεδίαση ονόματος πλανήτη
+            this.ctx.fillStyle = '#e8f0fb';
+            this.ctx.font = '12px Segoe UI';
+            this.ctx.fillText(this.getText(p.name), px + p.radius + 6, py + 4);
         });
 
         // 🚀 Argo Mission
