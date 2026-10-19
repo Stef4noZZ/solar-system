@@ -25,9 +25,11 @@ function updateUI() {
     compareApp.setLanguage(currentLang);
 
     document.getElementById('app-title').innerText = "🌌 " + t.title;
-    document.getElementById('lbl-objects').innerText = t.objectsMenu;
-    document.getElementById('lbl-mission-btn').innerText = t.missionBtn;
     
+    // Labels & UI text
+    const lblObjectsTitle = document.getElementById('lbl-objects-title');
+    if (lblObjectsTitle) lblObjectsTitle.innerText = "🪐 " + t.objectsMenu;
+
     document.getElementById('lbl-desc').innerText = t.descLabel;
     document.getElementById('lbl-diam').innerText = t.diameterLabel;
     document.getElementById('lbl-temp').innerText = t.tempLabel;
@@ -54,6 +56,9 @@ function updateUI() {
 
     document.getElementById('nav-solar').setAttribute('data-tooltip', t.tabSolar);
     document.getElementById('nav-compare').setAttribute('data-tooltip', t.tabCompare);
+    document.getElementById('compare-title').innerText = t.compareTitle;
+    document.getElementById('lbl-comp-a').innerText = t.compALabel;
+    document.getElementById('lbl-comp-b').innerText = t.compBLabel;
 
     populateMissionSelects();
     populateCompareSelects();
@@ -159,16 +164,55 @@ function createDrawerItem(body) {
             document.getElementById('nav-solar').click();
         }
         solarApp.focusOnBody(body);
+        // Κλείσιμο drawer μετά την επιλογή σε κινητά/desktop
+        document.getElementById('objects-drawer').style.display = 'none';
+        document.getElementById('btnToggleObjects').classList.remove('active');
     });
     return div;
 }
 
-// 🚀 Mission Event Handlers
-document.getElementById('btnToggleMission').addEventListener('click', () => {
-    const panel = document.getElementById('mission-panel');
-    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+// 🚀 Panel Toggling Logic (Mutual Exclusion)
+const objectsDrawer = document.getElementById('objects-drawer');
+const missionPanel = document.getElementById('mission-panel');
+const btnToggleObjects = document.getElementById('btnToggleObjects');
+const btnToggleMission = document.getElementById('btnToggleMission');
+
+function toggleLeftPanel(panelToOpen, panelToClose, btnToActivate, btnToDeactivate) {
+    const isOpen = panelToOpen.style.display === 'block';
+    
+    // Κλείσιμο του άλλου
+    panelToClose.style.display = 'none';
+    btnToDeactivate.classList.remove('active');
+
+    // Εναλλαγή του τρέχοντος
+    if (isOpen) {
+        panelToOpen.style.display = 'none';
+        btnToActivate.classList.remove('active');
+    } else {
+        panelToOpen.style.display = 'block';
+        btnToActivate.classList.add('active');
+    }
+}
+
+btnToggleObjects.addEventListener('click', () => {
+    toggleLeftPanel(objectsDrawer, missionPanel, btnToggleObjects, btnToggleMission);
 });
 
+btnToggleMission.addEventListener('click', () => {
+    toggleLeftPanel(missionPanel, objectsDrawer, btnToggleMission, btnToggleObjects);
+});
+
+document.getElementById('btnCloseObjects').addEventListener('click', () => {
+    objectsDrawer.style.display = 'none';
+    btnToggleObjects.classList.remove('active');
+});
+
+document.getElementById('btnCloseMission').addEventListener('click', () => {
+    missionPanel.style.display = 'none';
+    btnToggleMission.classList.remove('active');
+});
+
+// Mission Action Handlers
 document.getElementById('btnStartMission').addEventListener('click', () => {
     const origin = document.getElementById('selectOrigin').value;
     const dest = document.getElementById('selectDest').value;
@@ -179,11 +223,20 @@ document.getElementById('btnStartMission').addEventListener('click', () => {
     }
 
     solarApp.startMission(origin, dest);
-    document.getElementById('mission-panel').style.display = 'none';
+    
+    // Εναλλαγή περιεχομένου στο αριστερό panel (από φόρμα σε Live HUD)
+    document.getElementById('mission-setup-content').style.display = 'none';
+    document.getElementById('mission-status-card').style.display = 'block';
 });
 
 document.getElementById('btnAbortMission').addEventListener('click', () => {
     solarApp.abortMission();
+    
+    // Επαναφορά του panel στη φόρμα setup και κλείσιμο
+    document.getElementById('mission-status-card').style.display = 'none';
+    document.getElementById('mission-setup-content').style.display = 'block';
+    missionPanel.style.display = 'none';
+    btnToggleMission.classList.remove('active');
 });
 
 document.getElementById('btnFollowArgo').addEventListener('click', () => {
@@ -256,16 +309,11 @@ document.getElementById('btnReset').addEventListener('click', () => {
     solarApp.focusedTarget = null;
 });
 
-document.getElementById('btnToggleDrawer').addEventListener('click', () => {
-    const drawer = document.getElementById('objects-drawer');
-    drawer.style.display = drawer.style.display === 'block' ? 'none' : 'block';
-});
-
 document.getElementById('close-btn').addEventListener('click', () => {
     document.getElementById('sidebar').style.display = 'none';
 });
 
-// Navigation
+// Navigation Views
 const navButtons = document.querySelectorAll('.nav-icon-btn');
 const views = document.querySelectorAll('.view');
 

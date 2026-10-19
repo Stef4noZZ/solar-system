@@ -41,7 +41,39 @@ body, html {
     align-items: center;
 }
 
-/* Vertical Sidebar Navigation */
+/* Floating Left Tools Bar (Center Left - Symmetric to View Nav) */
+#left-tools-bar {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 95;
+}
+.tool-icon-btn {
+    width: 48px;
+    height: 48px;
+    background: rgba(18, 42, 65, 0.9);
+    border: 1px solid #2d4a70;
+    border-radius: 50%;
+    color: #e8f0fb;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.tool-icon-btn:hover, .tool-icon-btn.active {
+    background: #69d2ff;
+    color: #050a13;
+    border-color: #69d2ff;
+}
+
+/* Vertical Sidebar Navigation (Right Side) */
 #vertical-nav {
     position: absolute;
     right: 15px;
@@ -73,22 +105,47 @@ body, html {
     border-color: #69d2ff;
 }
 
-/* Mission Control Panels */
-#mission-panel, #mission-status-card {
+/* Common Floating Left Panels (Centered Vertically alongside tools) */
+.floating-left-panel {
     position: absolute;
-    bottom: 80px;
-    right: 75px;
+    left: 75px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 280px;
     background: rgba(12, 22, 37, 0.95);
     border: 1px solid #2d4a70;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 15px;
     box-sizing: border-box;
-    z-index: 90;
+    z-index: 92;
     backdrop-filter: blur(8px);
-    display: none;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #182a41;
+    padding-bottom: 8px;
+}
+.panel-title {
+    font-weight: bold;
+    font-size: 14px;
+    color: #69d2ff;
+}
+.panel-close-btn {
+    background: transparent;
+    border: none;
+    color: #91a4bc;
+    font-size: 16px;
+    cursor: pointer;
+}
+.panel-close-btn:hover {
+    color: #ffffff;
+}
+
+/* Mission Control Setup Panel & Status Card */
 #mission-panel h3 { margin: 0 0 10px 0; color: #69d2ff; font-size: 15px; }
 .form-group { margin-bottom: 10px; }
 .form-group label { display: block; font-size: 12px; color: #91a4bc; margin-bottom: 4px; }
@@ -135,22 +192,10 @@ body, html {
     font-size: 12px;
 }
 
-/* Objects Drawer */
-#objects-drawer {
-    position: absolute;
-    top: 70px;
-    left: 15px;
-    width: 250px;
-    max-height: calc(100vh - 160px);
-    background: rgba(12, 22, 37, 0.95);
-    border: 1px solid #182a41;
-    border-radius: 8px;
-    padding: 12px;
-    box-sizing: border-box;
+/* Objects Drawer Container */
+#objects-drawer .panel-body {
+    max-height: 60vh;
     overflow-y: auto;
-    z-index: 90;
-    backdrop-filter: blur(8px);
-    display: none;
 }
 .accordion-header {
     margin: 6px 0 2px 0;
@@ -173,10 +218,11 @@ body, html {
 .view.active { display: block; }
 canvas { display: block; width: 100vw; height: 100vh; }
 
-/* Sidebar Info */
+/* Sidebar Info (Right Panel) */
 #sidebar {
     position: absolute;
-    top: 70px;
+    top: 50%;
+    transform: translateY(-50%);
     right: 75px;
     width: 260px;
     background: rgba(12, 22, 37, 0.92);
@@ -217,9 +263,18 @@ canvas { display: block; width: 100vw; height: 100vh; }
     flex-direction: column;
     align-items: flex-end;
 }
+#mission-status-card {
+    width: 260px;
+    background: rgba(12, 22, 37, 0.92);
+    border: 1px solid #2d4a70;
+    border-radius: 10px;
+    padding: 12px;
+    box-sizing: border-box;
+    backdrop-filter: blur(8px);
+}
 .speed-group { display: flex; align-items: center; gap: 2px; background: #182a41; border: 1px solid #2d4a70; border-radius: 5px; padding: 2px 4px; }
 .speed-display { font-size: 12px; font-weight: bold; min-width: 55px; text-align: center; color: #69d2ff; }
-button.ctrl-btn, button.step-btn, button.lang-btn, button.drawer-toggle-btn {
+button.ctrl-btn, button.step-btn, button.lang-btn {
     background: #182a41;
     color: #e8f0fb;
     border: 1px solid #2d4a70;
@@ -249,9 +304,10 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
         bottom: 15px;
         padding: 10px;
     }
-    #sidebar, #mission-panel, #mission-status-card {
+    #sidebar, .floating-left-panel, #mission-status-card {
         width: calc(100vw - 90px);
-        right: 70px;
+        left: 70px;
+        right: 15px;
     }
     .logo { font-size: 13px; }
 }

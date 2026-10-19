@@ -32,7 +32,10 @@ export const translations = {
         stageWait: "⏳ Αναμονή Ευθυγράμμισης...",
         stageCruise: "🚀 Σε Τροχιά Μεταφοράς (Hohmann)",
         stageApproach: "🎯 Πλησιάζει τον Προορισμό",
-        stageArrived: "✅ Άφιξη στον Προορισμό!"
+        stageArrived: "✅ Άφιξη στον Προορισμό!",
+        compareTitle: "📏 Σύγκριση Μεγεθών Σωμάτων",
+        compALabel: "Σώμα A:",
+        compBLabel: "Σώμα B:"
     },
     en: {
         title: "SOLAR SYSTEM EXPLORER",
@@ -65,7 +68,10 @@ export const translations = {
         stageWait: "⏳ Waiting Alignment...",
         stageCruise: "🚀 Cruise Transfer Orbit",
         stageApproach: "🎯 Approaching Target",
-        stageArrived: "✅ Arrived at Target!"
+        stageArrived: "✅ Arrived at Target!",
+        compareTitle: "📏 Celestial Size Comparison",
+        compALabel: "Body A:",
+        compBLabel: "Body B:"
     }
 };
 

@@ -11,45 +11,74 @@
     <header id="nav-header">
         <div class="logo" id="app-title">🌌 ΕΞΕΡΕΥΝΗΤΗΣ ΗΛΙΑΚΟΥ ΣΥΣΤΗΜΑΤΟΣ</div>
         <div class="header-right">
-            <button class="drawer-toggle-btn" id="btnToggleDrawer">📋 <span id="lbl-objects">Σώματα</span></button>
             <button class="lang-btn" id="btnLang">🇬🇷 EL / EN</button>
         </div>
     </header>
+
+    <!-- Floating Tools Bar (Top Left) -->
+    <div id="left-tools-bar">
+        <button class="tool-icon-btn" id="btnToggleObjects" title="Ουράνια Σώματα">🪐</button>
+        <button class="tool-icon-btn" id="btnToggleMission" title="Αποστολή Αργώ">🚀</button>
+    </div>
+
+    <!-- Accordion Quick Objects Menu Drawer (Opens Top-Left) -->
+    <div id="objects-drawer" class="floating-left-panel" style="display: none;">
+        <div class="panel-header">
+            <span class="panel-title" id="lbl-objects-title">🪐 Ουράνια Σώματα</span>
+            <button class="panel-close-btn" id="btnCloseObjects">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="accordion-header" data-target="drawer-stars"><span id="cat-stars">Άστρα</span> <span>▶</span></div>
+            <div class="accordion-content" id="drawer-stars"></div>
+
+            <div class="accordion-header" data-target="drawer-planets"><span id="cat-planets">Πλανήτες</span> <span>▶</span></div>
+            <div class="accordion-content" id="drawer-planets"></div>
+
+            <div class="accordion-header" data-target="drawer-moons"><span id="cat-moons">Δορυφόροι</span> <span>▶</span></div>
+            <div class="accordion-content" id="drawer-moons"></div>
+
+            <div class="accordion-header" data-target="drawer-small"><span id="cat-small">Νάνοι & Κομήτες</span> <span>▶</span></div>
+            <div class="accordion-content" id="drawer-small"></div>
+        </div>
+    </div>
+
+    <!-- 🚀 Mission Control Setup & Live HUD Panel (Opens Top-Left) -->
+    <div id="mission-panel" class="floating-left-panel" style="display: none;">
+        <div class="panel-header">
+            <span class="panel-title" id="lbl-mission-title">🚀 ΑΠΟΣΤΟΛΗ ΙΑΣΟΝΑΣ · ΑΡΓΩ</span>
+            <button class="panel-close-btn" id="btnCloseMission">✕</button>
+        </div>
+        
+        <!-- Setup Form View -->
+        <div id="mission-setup-content" class="panel-body">
+            <div class="form-group">
+                <label id="lbl-origin">Προέλευση:</label>
+                <select id="selectOrigin"></select>
+            </div>
+            <div class="form-group">
+                <label id="lbl-dest">Προορισμός:</label>
+                <select id="selectDest"></select>
+            </div>
+            <button class="ctrl-btn" id="btnStartMission" style="width: 100%; margin-top: 10px;">🚀 Εκτόξευση</button>
+        </div>
+
+        <!-- Live HUD View (Εμφανίζεται μετά την εκτόξευση) -->
+        <div id="mission-status-card" class="panel-body" style="display: none;">
+            <div id="mission-stage" style="font-size: 13px; color: #e8f0fb; margin-bottom: 8px; font-weight: bold;">-</div>
+            <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
+            <div id="mission-days" style="font-size: 11px; color: #91a4bc; margin-bottom: 12px;">0 / 0 days</div>
+            <div style="display: flex; gap: 8px;">
+                <button class="ctrl-btn" id="btnFollowArgo" style="font-size: 11px; flex: 1;">🎯 Follow Argo</button>
+                <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626; border-color: #a53232;">✖</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Vertical Navigation Panel (Right Side) -->
     <nav id="vertical-nav">
         <button class="nav-icon-btn active" data-view="solar-view" data-tooltip="Ηλιακό Σύστημα" id="nav-solar">🪐</button>
         <button class="nav-icon-btn" data-view="compare-view" data-tooltip="Σύγκριση Μεγεθών" id="nav-compare">📏</button>
     </nav>
-
-    <!-- 🚀 Mission Control Setup Panel -->
-    <div id="mission-panel">
-        <h3 id="lbl-mission-title">ΑΠΟΣΤΟΛΗ ΙΑΣΟΝΑΣ · ΑΡΓΩ</h3>
-        <div class="form-group">
-            <label id="lbl-origin">Προέλευση:</label>
-            <select id="selectOrigin"></select>
-        </div>
-        <div class="form-group">
-            <label id="lbl-dest">Προορισμός:</label>
-            <select id="selectDest"></select>
-        </div>
-        <button class="ctrl-btn" id="btnStartMission" style="width: 100%; margin-top: 5px;">🚀 Εκτόξευση</button>
-    </div>
-
-    <!-- Accordion Quick Objects Menu Drawer -->
-    <div id="objects-drawer">
-        <div class="accordion-header" data-target="drawer-stars"><span id="cat-stars">Άστρα</span> <span>▶</span></div>
-        <div class="accordion-content" id="drawer-stars"></div>
-
-        <div class="accordion-header" data-target="drawer-planets"><span id="cat-planets">Πλανήτες</span> <span>▶</span></div>
-        <div class="accordion-content" id="drawer-planets"></div>
-
-        <div class="accordion-header" data-target="drawer-moons"><span id="cat-moons">Δορυφόροι</span> <span>▶</span></div>
-        <div class="accordion-content" id="drawer-moons"></div>
-
-        <div class="accordion-header" data-target="drawer-small"><span id="cat-small">Νάνοι & Κομήτες</span> <span>▶</span></div>
-        <div class="accordion-content" id="drawer-small"></div>
-    </div>
 
     <main id="app-container">
         
@@ -82,9 +111,9 @@
                 <button class="ctrl-btn" id="btnReset">Επαναφορά</button>
             </div>
 
-            <!-- Bottom Right Mission Actions Container -->
+            <!-- Bottom Right Mission HUD Container -->
             <div id="bottom-right-actions">
-                <div id="mission-status-card">
+                <div id="mission-status-card" style="display: none;">
                     <h4>🚀 ΑΡΓΩ · LIVE HUD</h4>
                     <div id="mission-stage" style="font-size: 12px; color: #e8f0fb; margin-bottom: 5px;">-</div>
                     <div class="progress-bg"><div class="progress-fill" id="mission-progress-bar"></div></div>
@@ -94,8 +123,6 @@
                         <button class="ctrl-btn" id="btnAbortMission" style="font-size: 11px; background: #8b2626;">✖</button>
                     </div>
                 </div>
-
-                <button class="ctrl-btn" id="btnToggleMission" style="background: #182a41; border-color: #69d2ff; color: #69d2ff; font-weight: bold; padding: 8px 16px;">🚀 <span id="lbl-mission-btn">Αποστολή</span></button>
             </div>
         </section>
 
