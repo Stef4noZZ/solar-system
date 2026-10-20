@@ -320,9 +320,10 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
         padding: 10px;
     }
     #sidebar, .floating-left-panel, #mission-status-card {
-        width: calc(100vw - 90px);
-        left: 70px;
-        right: 15px;
+        width: fit-content;                  /* Παίρνει μόνο το πλάτος του περιεχομένου του */
+        max-width: calc(100vw - 85px);       /* Δεν φτάνει μέχρι τέρμα δεξιά (σταματάει πριν τα vertical-nav) */
+        left: 65px;                          /* Ξεκινάει δεξιά από τα αριστερόεικονίδια/εργαλεία */
+        right: auto;                         /* Ακυρώνει τυχόν right constraints */
     }
     .logo { font-size: 13px; }
 }
