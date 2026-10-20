@@ -164,9 +164,6 @@ function createDrawerItem(body) {
             document.getElementById('nav-solar').click();
         }
         solarApp.focusOnBody(body);
-        // Κλείσιμο drawer μετά την επιλογή σε κινητά/desktop
-        document.getElementById('objects-drawer').style.display = 'none';
-        document.getElementById('btnToggleObjects').classList.remove('active');
     });
     return div;
 }
@@ -307,6 +304,13 @@ document.getElementById('btnReset').addEventListener('click', () => {
     solarApp.targetOffsetX = 0;
     solarApp.targetOffsetY = 0;
     solarApp.focusedTarget = null;
+
+    // ✨ Κλείσιμο όλων των ανοιχτών καρτελών / panels πληροφοριών
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('objects-drawer').style.display = 'none';
+    document.getElementById('mission-panel').style.display = 'none';
+    document.getElementById('btnToggleObjects').classList.remove('active');
+    document.getElementById('btnToggleMission').classList.remove('active');
 });
 
 document.getElementById('close-btn').addEventListener('click', () => {

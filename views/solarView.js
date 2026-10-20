@@ -528,7 +528,7 @@ export class SolarSystem {
         smallBodies.forEach((sb, i) => {
             const isFocused = this.focusedTarget && this.focusedTarget.type === 'small' && this.focusedTarget.index === i;
 
-            if (this.showOrbits || isFocused) {
+            if (this.showOrbits) {
                 this.ctx.strokeStyle = isFocused ? 'rgba(105, 210, 255, 0.95)' : 'rgba(60, 80, 110, 0.35)';
                 this.ctx.lineWidth = isFocused ? (2 / this.zoom) : 1;
                 this.ctx.setLineDash([3, 3]);
@@ -573,7 +573,7 @@ export class SolarSystem {
         planets.forEach((p, i) => {
             const isFocused = this.focusedTarget && this.focusedTarget.type === 'planet' && this.focusedTarget.index === i;
             
-            if (this.showOrbits || isFocused) {
+            if (this.showOrbits) {
                 this.ctx.strokeStyle = isFocused ? 'rgba(105, 210, 255, 0.95)' : 'rgba(28, 48, 75, 0.75)';
                 this.ctx.lineWidth = isFocused ? (2.5 / this.zoom) : (1 / this.zoom);
                 this.ctx.beginPath();
@@ -652,7 +652,7 @@ export class SolarSystem {
                 const isMoonFocused = this.focusedTarget && this.focusedTarget.type === 'moon' && this.focusedTarget.index === mIdx;
 
                 // Φωτισμός τροχιάς φεγγαριού αν είναι focused
-                if (isMoonFocused) {
+                if (this.showOrbits && isMoonFocused) {
                     this.ctx.strokeStyle = 'rgba(105, 210, 255, 0.9)';
                     this.ctx.lineWidth = 1.5 / this.zoom;
                     this.ctx.beginPath();

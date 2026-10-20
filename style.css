@@ -290,13 +290,27 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
 /* 📱 Mobile Responsive Adjustments */
 @media (max-width: 768px) {
     #controls {
-        bottom: 15px;
+        bottom: 12px;
         left: 10px;
         right: 70px;
-        justify-content: flex-start;
+        justify-content: center;
         padding: 6px;
+        max-height: 110px; /* Περιορισμός ύψους για να μην κρέμονται υπερβολικά */
+        overflow-y: auto;  /* Scrollable αν χρειαστεί σε πολύ μικρές οθόνες */
+        gap: 4px;
     }
-    button.ctrl-btn { padding: 6px 10px; font-size: 11px; min-height: 36px; }
+    button.ctrl-btn { 
+        padding: 5px 8px; 
+        font-size: 11px; 
+        min-height: 32px; 
+    }
+    .speed-group {
+        padding: 1px 2px;
+    }
+    .speed-display {
+        font-size: 11px;
+        min-width: 45px;
+    }
     #compare-panel {
         width: calc(100% - 80px);
         left: 10px;
