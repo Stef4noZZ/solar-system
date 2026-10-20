@@ -293,11 +293,14 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
         bottom: 12px;
         left: 10px;
         right: 10px; 
-        justify-content: space-between; /* 👈 Απλώνει τα κουμπιά ομοιόμορφα σε όλο το διαθέσιμο πλάτος */
-        padding: 6px 8px;
-        max-height: 115px;
-        overflow-y: auto;
-        gap: 5px;
+        justify-content: space-between;
+        padding: 8px 10px;
+        max-height: none;        /* Αφαιρούμε το περιοριστικό max-height */
+        height: auto;            /* Προσαρμόζεται αυτόματα στο περιεχόμενο */
+        display: flex;
+        flex-wrap: wrap;         /* Επιτρέπει στα κουμπιά να πέφτουν σε 2η γραμμή όμορφα */
+        align-items: center;
+        gap: 6px;                /* Μικρότερο κενό για οικονομία χώρου */
     }
     button.ctrl-btn { 
         padding: 5px 10px; 
