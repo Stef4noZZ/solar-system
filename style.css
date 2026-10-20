@@ -292,17 +292,18 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
     #controls {
         bottom: 12px;
         left: 10px;
-        right: 70px;
-        justify-content: center;
-        padding: 6px;
-        max-height: 110px; /* Περιορισμός ύψους για να μην κρέμονται υπερβολικά */
-        overflow-y: auto;  /* Scrollable αν χρειαστεί σε πολύ μικρές οθόνες */
-        gap: 4px;
+        right: 10px; 
+        justify-content: space-between; /* 👈 Απλώνει τα κουμπιά ομοιόμορφα σε όλο το διαθέσιμο πλάτος */
+        padding: 6px 8px;
+        max-height: 115px;
+        overflow-y: auto;
+        gap: 5px;
     }
     button.ctrl-btn { 
-        padding: 5px 8px; 
+        padding: 5px 10px; 
         font-size: 11px; 
         min-height: 32px; 
+        flex-grow: 1;
     }
     .speed-group {
         padding: 1px 2px;

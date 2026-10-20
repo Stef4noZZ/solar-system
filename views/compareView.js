@@ -69,8 +69,6 @@ export class SizeComparisonView {
     initEvents() {
         window.addEventListener('resize', () => this.resize());
 
-        let isDragging = false;
-        let startX, startY, hasMoved = false;
         let initialPinchDist = null;
 
         const getTouchDist = (e) => {
@@ -80,53 +78,31 @@ export class SizeComparisonView {
             );
         };
 
-        const onStart = (clientX, clientY) => {
-            isDragging = true;
-            hasMoved = false;
-            startX = clientX - this.targetOffsetX;
-            startY = clientY - this.targetOffsetY;
-        };
-
-        const onMove = (clientX, clientY) => {
-            if (!isDragging) return;
-            if (Math.abs(clientX - (startX + this.targetOffsetX)) > 5 || Math.abs(clientY - (startY + this.targetOffsetY)) > 5) {
-                hasMoved = true;
-            }
-            this.targetOffsetX = clientX - startX;
-            this.targetOffsetY = clientY - startY;
-        };
-
-        this.canvas.addEventListener('mousedown', (e) => onStart(e.clientX, e.clientY));
-        window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
-        window.addEventListener('mouseup', (e) => {
-            isDragging = false;
-            if (!hasMoved && e.target === this.canvas) this.checkClick(e.clientX, e.clientY);
+        // Click / Tap Event για επιλογή σώματος
+        this.canvas.addEventListener('click', (e) => {
+            this.checkClick(e.clientX, e.clientY);
         });
 
-        // 📱 Touch Events
+        // 📱 Touch Events: Αποκλειστικά Pinch-to-Zoom με 2 δάχτυλα (χωρίς πλάγιο pan)
         this.canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                onStart(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2) {
-                isDragging = false;
+            if (e.touches.length === 2) {
                 initialPinchDist = getTouchDist(e);
             }
         }, { passive: true });
 
         this.canvas.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1 && isDragging) {
-                onMove(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2 && initialPinchDist) {
+            if (e.touches.length === 2 && initialPinchDist) {
+                e.preventDefault(); // Αποφυγή default scroll/pan του browser
                 const currentDist = getTouchDist(e);
                 const factor = currentDist / initialPinchDist;
-                this.targetZoom = Math.max(0.1, Math.min(this.targetZoom * factor, 20.0));
+                
+                this.targetZoom = Math.max(0.3, Math.min(this.targetZoom * factor, 10.0));
                 initialPinchDist = currentDist;
             }
-        }, { passive: true });
+        }, { passive: false });
 
         this.canvas.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-                isDragging = false;
+            if (e.touches.length < 2) {
                 initialPinchDist = null;
             }
         });
@@ -142,7 +118,7 @@ export class SizeComparisonView {
             } else {
                 this.targetZoom /= (1 + intensity);
             }
-            this.targetZoom = Math.max(0.1, Math.min(this.targetZoom, 20.0));
+            this.targetZoom = Math.max(0.3, Math.min(this.targetZoom, 10.0));
 
             const mouseX = e.clientX - this.canvas.width / 2;
             const mouseY = e.clientY - this.canvas.height / 2;
@@ -151,6 +127,7 @@ export class SizeComparisonView {
             this.targetOffsetY = mouseY - (mouseY - this.targetOffsetY) * (this.targetZoom / oldZoom);
         }, { passive: false });
 
+        // Double click για zoom στο σώμα
         this.canvas.addEventListener('dblclick', (e) => {
             const centerX = this.canvas.width / 2 + this.offsetX;
             const centerY = this.canvas.height / 2 + this.offsetY;
@@ -161,9 +138,9 @@ export class SizeComparisonView {
                 const screenRadius = pos.radius * this.zoom;
 
                 if (Math.hypot(e.clientX - screenX, e.clientY - screenY) <= Math.max(screenRadius + 15, 25)) {
-                    this.targetOffsetX = -pos.x * 3.5; // Κεντράρισμα
+                    this.targetOffsetX = -pos.x * 3.5;
                     this.targetOffsetY = 0;
-                    this.targetZoom = 3.5; // Zoom in
+                    this.targetZoom = 3.5;
                     return;
                 }
             }
@@ -203,7 +180,6 @@ export class SizeComparisonView {
         ctx.save();
 
         if (item.id === 'sun') {
-            // ☀️ Ήλιος - Glow & Corona
             const glow = ctx.createRadialGradient(x, y, radiusPx * 0.2, x, y, radiusPx * 2.8);
             glow.addColorStop(0, '#ffffff');
             glow.addColorStop(0.25, '#ffe855');
@@ -220,10 +196,9 @@ export class SizeComparisonView {
             ctx.fill();
 
         } else {
-            // 🪐 Ατμοσφαιρική Λάμψη (Glow) για Γη / Αφροδίτη / Ουρανό / Ποσειδώνα
             if (item.hasGlow || item.isEarth) {
                 const atmoGlow = ctx.createRadialGradient(x, y, radiusPx * 0.9, x, y, radiusPx * 1.35);
-                let atmoColor = 'rgba(105, 210, 255, 0.45)'; // default cyan/blue
+                let atmoColor = 'rgba(105, 210, 255, 0.45)';
                 if (item.id === 'venus') atmoColor = 'rgba(233, 189, 120, 0.4)';
                 else if (item.id === 'neptune') atmoColor = 'rgba(88, 127, 240, 0.5)';
 
@@ -235,7 +210,6 @@ export class SizeComparisonView {
                 ctx.fill();
             }
 
-            // 3D Spherical Base Gradient
             const sphereGrad = ctx.createRadialGradient(
                 x - radiusPx * 0.35, y - radiusPx * 0.35, radiusPx * 0.08,
                 x, y, radiusPx
@@ -250,7 +224,6 @@ export class SizeComparisonView {
             ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
             ctx.fill();
 
-            // 🌪️ Ειδικά μοτίβα: Δίας (Ζώνες & Μεγάλη Κηλίδα)
             if (item.isJovian && radiusPx > 3) {
                 ctx.save();
                 ctx.beginPath();
@@ -261,7 +234,6 @@ export class SizeComparisonView {
                 ctx.fillRect(x - radiusPx, y - radiusPx * 0.4, radiusPx * 2, radiusPx * 0.25);
                 ctx.fillRect(x - radiusPx, y + radiusPx * 0.15, radiusPx * 2, radiusPx * 0.2);
 
-                // Great Red Spot
                 if (radiusPx > 10) {
                     ctx.fillStyle = 'rgba(210, 70, 40, 0.8)';
                     ctx.beginPath();
@@ -271,20 +243,19 @@ export class SizeComparisonView {
                 ctx.restore();
             }
 
-            // 🌍 Ειδικό μοτίβο: Γη (Ήπειροι / Σύννεφα)
             if (item.isEarth && radiusPx > 5) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
                 ctx.clip();
 
-                ctx.fillStyle = 'rgba(46, 180, 90, 0.55)'; // Ήπειροι
+                ctx.fillStyle = 'rgba(46, 180, 90, 0.55)';
                 ctx.beginPath();
                 ctx.arc(x - radiusPx * 0.2, y - radiusPx * 0.1, radiusPx * 0.45, 0, Math.PI * 2);
                 ctx.arc(x + radiusPx * 0.3, y + radiusPx * 0.2, radiusPx * 0.35, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // Σύννεφα
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
                 ctx.beginPath();
                 ctx.arc(x + radiusPx * 0.1, y - radiusPx * 0.3, radiusPx * 0.4, 0, Math.PI * 2);
                 ctx.fill();
@@ -329,7 +300,6 @@ export class SizeComparisonView {
 
             const isHighlighted = (item.id === this.selectedA || item.id === this.selectedB);
 
-            // 🔘 Highlight Circle
             if (isHighlighted) {
                 this.ctx.strokeStyle = '#69d2ff';
                 this.ctx.lineWidth = 3 / this.zoom;
@@ -338,7 +308,6 @@ export class SizeComparisonView {
                 this.ctx.stroke();
             }
 
-            // 🪐 Δαχτυλίδια Κρόνου (Πίσω τμήμα)
             if (item.rings) {
                 this.ctx.save();
                 this.ctx.translate(currentX, 0);
@@ -357,10 +326,8 @@ export class SizeComparisonView {
                 this.ctx.restore();
             }
 
-            // 🌕 Σώμα Πλανήτη
             this.drawPlanetBody(this.ctx, item, currentX, 0, radiusPx);
 
-            // 🏷️ Labels & Text
             this.ctx.fillStyle = isHighlighted ? '#69d2ff' : '#e8f0fb';
             this.ctx.font = `${isHighlighted ? 'bold ' : ''}13px Segoe UI`;
             this.ctx.textAlign = 'center';

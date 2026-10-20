@@ -380,19 +380,31 @@ export class SolarSystem {
                 let targetDiff = (this.mission.requiredPhaseDiff) % (Math.PI * 2);
                 if (targetDiff < 0) targetDiff += Math.PI * 2;
 
-                if (Math.abs(currentPhaseDiff - targetDiff) < 0.05) {
-                    this.mission.waitingForLaunch = false;
-                    this.mission.startAngle = currentOriginPhase;
-                } else {
-                    this.mission.x = Math.cos(currentOriginPhase) * this.mission.r1;
-                    this.mission.y = Math.sin(currentOriginPhase) * this.mission.r1;
-                    this.mission.angle = currentOriginPhase + Math.PI / 2;
-                }
+                // Υπολογισμός εναπομείνουσας γωνιακής διαφοράς και εκτίμηση ημερών αναμονής
+                let angleDiff = Math.abs(currentPhaseDiff - targetDiff);
+                if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+                
+                // Εκτίμηση ημερών με βάση την ταχύτητα σχετικής μετατόπισης (περίπου 0.017 rad ανά ημέρα για εσωτερικούς πλανήτες)
+                const estDaysRemaining = Math.round(angleDiff * 58); 
+
+                this.mission.x = Math.cos(currentOriginPhase) * this.mission.r1;
+                this.mission.y = Math.sin(currentOriginPhase) * this.mission.r1;
+                this.mission.angle = currentOriginPhase + Math.PI / 2;
 
                 const t = translations[this.lang];
-                document.getElementById('mission-stage').innerText = t.stageWait;
+                document.getElementById('mission-stage').innerText = t.stageWait || "Αναμονή Ευθυγράμμισης...";
                 document.getElementById('mission-progress-bar').style.width = `5%`;
-                document.getElementById('mission-days').innerText = `Waiting Alignment...`;
+                
+                // Εμφάνιση εκτίμησης ημερών αναμονής
+                const daysText = this.lang === 'el' 
+                    ? `Εκτίμηση αναμονής: ~${estDaysRemaining} ημέρες` 
+                    : `Est. waiting: ~${estDaysRemaining} days`;
+                document.getElementById('mission-days').innerText = daysText;
+
+                if (angleDiff < 0.05) {
+                    this.mission.waitingForLaunch = false;
+                    this.mission.startAngle = currentOriginPhase;
+                }
                 return;
             }
 
@@ -679,7 +691,7 @@ export class SolarSystem {
         // 🚀 Argo Mission
         if (this.mission.active) {
             this.ctx.strokeStyle = 'rgba(105, 210, 255, 0.8)';
-            this.ctx.lineWidth = 2 / this.zoom;
+            this.ctx.lineWidth = 1.5 / this.zoom;
             this.ctx.beginPath();
             this.mission.trail.forEach((pt, idx) => {
                 if (idx === 0) this.ctx.moveTo(pt.x, pt.y);
@@ -691,31 +703,56 @@ export class SolarSystem {
             this.ctx.translate(this.mission.x, this.mission.y);
             this.ctx.rotate(this.mission.angle);
 
+            // Πυραυλική ουρά (μικρότερη & κομψή)
             if (!this.mission.waitingForLaunch && this.mission.progress < 1.0) {
-                const plumeGlow = this.ctx.createRadialGradient(-10, 0, 1, -18, 0, 10);
+                const plumeGlow = this.ctx.createRadialGradient(-10, 0, 1, -18, 0, 8);
                 plumeGlow.addColorStop(0, '#69d2ff');
                 plumeGlow.addColorStop(0.5, '#ffaa00');
                 plumeGlow.addColorStop(1, 'rgba(255,0,0,0)');
                 this.ctx.fillStyle = plumeGlow;
                 this.ctx.beginPath();
-                this.ctx.arc(-10, 0, 10, 0, Math.PI * 2);
+                this.ctx.arc(-10, 0, 8, 0, Math.PI * 2);
                 this.ctx.fill();
             }
 
-            this.ctx.fillStyle = '#ffffff';
+            // --- Σχεδίαση Σκάφους (Κλιμακωμένο πιο μικρό: ~30% μικρότερο) ---
+            
+            // 1. Κύριο σκαρί (Hull)
+            this.ctx.fillStyle = '#b0c4de';
             this.ctx.strokeStyle = '#69d2ff';
             this.ctx.lineWidth = 1;
             this.ctx.beginPath();
-            this.ctx.moveTo(12, 0);
-            this.ctx.lineTo(-6, -7);
-            this.ctx.lineTo(-3, 0);
-            this.ctx.lineTo(-6, 7);
+            this.ctx.moveTo(12, 0);   // Μύτη πλώρης
+            this.ctx.lineTo(4, -4);   // Αριστερό πλευρό
+            this.ctx.lineTo(-9, -2.5);// Πρύμνη αριστερά
+            this.ctx.lineTo(-12, 0);  // Κέντρο πρύμνης
+            this.ctx.lineTo(-9, 2.5); // Πρύμνη δεξιά
+            this.ctx.lineTo(4, 4);    // Δεξί πλευρό
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
 
-            this.ctx.fillStyle = '#3b82f6';
-            this.ctx.fillRect(-2, -14, 4, 28);
+            // 2. Χρυσαφένια λεπτομέρεια καταστρώματος
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.beginPath();
+            this.ctx.ellipse(0, 0, 5, 1.8, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // 3. Φωτεινά ενεργειακά κουπία (Plasma Oars) - μικρότερα
+            this.ctx.strokeStyle = '#69d2ff';
+            this.ctx.lineWidth = 1.2;
+            for (let o = -5; o <= 5; o += 4) {
+                // Αριστερά κουπία
+                this.ctx.beginPath();
+                this.ctx.moveTo(o, -2.5);
+                this.ctx.lineTo(o - 1, -7);
+                this.ctx.stroke();
+                // Δεξιά κουπία
+                this.ctx.beginPath();
+                this.ctx.moveTo(o, 2.5);
+                this.ctx.lineTo(o - 1, 7);
+                this.ctx.stroke();
+            }
 
             this.ctx.restore();
         }
