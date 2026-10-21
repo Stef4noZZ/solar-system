@@ -11,10 +11,10 @@ export class SolarSystem {
         this.smallBodyPhases = smallBodies.map(() => Math.random() * Math.PI * 2);
 
         this.timeScales = [
-            { label: "1d / s", daysPerSec: 1.0 },
-            { label: "30d / s", daysPerSec: 30.0 },
-            { label: "1y / s", daysPerSec: EARTH_YEAR_DAYS },
-            { label: "10y / s", daysPerSec: EARTH_YEAR_DAYS * 10 }
+            { label: "Real Time", daysPerSec: 1.0 / 86400 },        // Real Time (1 δευτερόλεπτο = 1 δευτερόλεπτο)
+            { label: "1d / s", daysPerSec: 1.0 },                   // d/s (Ημέρες ανά δευτερόλεπτο)
+            { label: "30d / s", daysPerSec: 30.0 },                 // m/s (Μήνες ανά δευτερόλεπτο)
+            { label: "1y / s", daysPerSec: EARTH_YEAR_DAYS }        // y/s (Έτη ανά δευτερόλεπτο)
         ];
         this.timeScaleIndex = 0;
         this.timeDirection = 1;
