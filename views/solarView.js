@@ -1,20 +1,21 @@
 import { sunData, planets, moonsData, smallBodies, EARTH_YEAR_DAYS, translations } from '../data.js';
 
 export class SolarSystem {
-    constructor(canvasId) {
+    constructor(canvasId, onBodySelectedCallback) { // 👈 Προσθήκη callback δέκτη
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.lang = 'el';
+        this.onBodySelected = onBodySelectedCallback; // 👈 Αποθήκευση callback
 
         this.planetPhases = planets.map(() => Math.random() * Math.PI * 2);
         this.moonPhases = moonsData.map(() => Math.random() * Math.PI * 2);
         this.smallBodyPhases = smallBodies.map(() => Math.random() * Math.PI * 2);
 
         this.timeScales = [
-            { label: "Real Time", daysPerSec: 1.0 / 86400 },        // Real Time (1 δευτερόλεπτο = 1 δευτερόλεπτο)
-            { label: "1d / s", daysPerSec: 1.0 },                   // d/s (Ημέρες ανά δευτερόλεπτο)
-            { label: "30d / s", daysPerSec: 30.0 },                 // m/s (Μήνες ανά δευτερόλεπτο)
-            { label: "1y / s", daysPerSec: EARTH_YEAR_DAYS }        // y/s (Έτη ανά δευτερόλεπτο)
+            { label: "Real Time", daysPerSec: 1.0 / 86400 },        
+            { label: "1d / s", daysPerSec: 1.0 },                  
+            { label: "30d / s", daysPerSec: 30.0 },                 
+            { label: "1y / s", daysPerSec: EARTH_YEAR_DAYS }        
         ];
         this.timeScaleIndex = 0;
         this.timeDirection = 1;
@@ -95,7 +96,6 @@ export class SolarSystem {
         let isDragging = false;
         let startX, startY, hasMoved = false;
 
-        // Touch & Pinch-to-zoom Variables
         let initialPinchDist = null;
 
         const getTouchDist = (e) => {
@@ -129,7 +129,6 @@ export class SolarSystem {
             if (!hasMoved && e.target === this.canvas) this.checkClick(e.clientX, e.clientY, false);
         });
 
-        // 📱 Touch Events for Mobile
         this.canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 onStart(e.touches[0].clientX, e.touches[0].clientY);
@@ -169,13 +168,11 @@ export class SolarSystem {
             const centerX = this.canvas.width / 2 + this.offsetX;
             const centerY = this.canvas.height / 2 + this.offsetY;
 
-            // Έλεγχος για διπλό κλικ στον Ήλιο
             if (Math.hypot(e.clientX - centerX, e.clientY - centerY) <= sunData.radius * this.zoom + 15) {
                 this.focusOnBody(sunData);
                 return;
             }
 
-            // Έλεγχος για διπλό κλικ σε Πλανήτες
             for (let i = 0; i < planets.length; i++) {
                 const p = planets[i];
                 const px = centerX + Math.cos(this.planetPhases[i]) * p.orbit * this.zoom;
@@ -337,12 +334,10 @@ export class SolarSystem {
     }
 
     selectBody(body) {
-        document.getElementById('info-name').innerText = this.getText(body.name);
-        document.getElementById('info-desc').innerText = this.getText(body.desc);
-        document.getElementById('info-diam').innerText = this.getText(body.diameter) || "-";
-        document.getElementById('info-temp').innerText = this.getText(body.temp) || "-";
-        document.getElementById('info-moons').innerText = this.getText(body.moons) || this.getText(body.type) || "-";
-        document.getElementById('sidebar').style.display = 'block';
+        // Ενημέρωση sidebar μέσω callback αν υπάρχει
+        if (this.onBodySelected) {
+            this.onBodySelected(body);
+        }
     }
 
     updatePhysics(deltaTimeSec) {
@@ -380,11 +375,9 @@ export class SolarSystem {
                 let targetDiff = (this.mission.requiredPhaseDiff) % (Math.PI * 2);
                 if (targetDiff < 0) targetDiff += Math.PI * 2;
 
-                // Υπολογισμός εναπομείνουσας γωνιακής διαφοράς και εκτίμηση ημερών αναμονής
                 let angleDiff = Math.abs(currentPhaseDiff - targetDiff);
                 if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
                 
-                // Εκτίμηση ημερών με βάση την ταχύτητα σχετικής μετατόπισης (περίπου 0.017 rad ανά ημέρα για εσωτερικούς πλανήτες)
                 const estDaysRemaining = Math.round(angleDiff * 58); 
 
                 this.mission.x = Math.cos(currentOriginPhase) * this.mission.r1;
@@ -395,7 +388,6 @@ export class SolarSystem {
                 document.getElementById('mission-stage').innerText = t.stageWait || "Αναμονή Ευθυγράμμισης...";
                 document.getElementById('mission-progress-bar').style.width = `5%`;
                 
-                // Εμφάνιση εκτίμησης ημερών αναμονής
                 const daysText = this.lang === 'el' 
                     ? `Εκτίμηση αναμονής: ~${estDaysRemaining} ημέρες` 
                     : `Est. waiting: ~${estDaysRemaining} days`;
@@ -444,7 +436,7 @@ export class SolarSystem {
             if (this.mission.progress >= 1.0) stageText = t.stageArrived;
 
             document.getElementById('mission-stage').innerText = stageText;
-            document.getElementById('mission-progress-bar').style.width = `${Math.round(this.mission.progress * 100)}%`;
+            document.getElementById('mission-progress-bar').style.width = `${Math.round(this.mission.progress * 100)}%`; // 👈 Διορθωμένο (*)
             document.getElementById('mission-days').innerText = `${Math.round(this.mission.elapsedDays)} / ${Math.round(this.mission.transferDays)} days`;
         }
     }
@@ -512,7 +504,6 @@ export class SolarSystem {
             this.ctx.fill();
         }
 
-        // Ήλιος
         const sunGlow = this.ctx.createRadialGradient(0, 0, sunData.radius * 0.2, 0, 0, sunData.radius * 3.2);
         sunGlow.addColorStop(0, '#ffffff');
         sunGlow.addColorStop(0.2, '#ffea00');
@@ -528,7 +519,6 @@ export class SolarSystem {
         this.ctx.arc(0, 0, sunData.radius, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // Αστεροειδείς
         this.ctx.fillStyle = 'rgba(160, 160, 160, 0.45)';
         this.asteroids.forEach(ast => {
             const ax = Math.cos(ast.phase) * ast.orbit;
@@ -536,7 +526,6 @@ export class SolarSystem {
             this.ctx.fillRect(ax, ay, ast.size, ast.size);
         });
 
-        // Μικρά Σώματα
         smallBodies.forEach((sb, i) => {
             const isFocused = this.focusedTarget && this.focusedTarget.type === 'small' && this.focusedTarget.index === i;
 
@@ -581,7 +570,6 @@ export class SolarSystem {
             this.ctx.fillText(this.getText(sb.name), sbx + sb.radius + 4, sby + 3);
         });
 
-        // Πλανήτες
         planets.forEach((p, i) => {
             const isFocused = this.focusedTarget && this.focusedTarget.type === 'planet' && this.focusedTarget.index === i;
             
@@ -663,7 +651,6 @@ export class SolarSystem {
                 const mIdx = moonsData.indexOf(m);
                 const isMoonFocused = this.focusedTarget && this.focusedTarget.type === 'moon' && this.focusedTarget.index === mIdx;
 
-                // Φωτισμός τροχιάς φεγγαριού αν είναι focused
                 if (this.showOrbits && isMoonFocused) {
                     this.ctx.strokeStyle = 'rgba(105, 210, 255, 0.9)';
                     this.ctx.lineWidth = 1.5 / this.zoom;
@@ -675,20 +662,17 @@ export class SolarSystem {
                 const mx = px + Math.cos(this.moonPhases[mIdx]) * m.orbitDist;
                 const my = py + Math.sin(this.moonPhases[mIdx]) * m.orbitDist;
 
-                // Σχεδίαση φεγγαριού
                 this.ctx.fillStyle = m.color;
                 this.ctx.beginPath();
                 this.ctx.arc(mx, my, m.radius, 0, Math.PI * 2);
                 this.ctx.fill();
             });
 
-            // 🏷️ Σχεδίαση ονόματος πλανήτη
             this.ctx.fillStyle = '#e8f0fb';
             this.ctx.font = '12px Segoe UI';
             this.ctx.fillText(this.getText(p.name), px + p.radius + 6, py + 4);
         });
 
-        // 🚀 Argo Mission
         if (this.mission.active) {
             this.ctx.strokeStyle = 'rgba(105, 210, 255, 0.8)';
             this.ctx.lineWidth = 1.5 / this.zoom;
@@ -703,7 +687,6 @@ export class SolarSystem {
             this.ctx.translate(this.mission.x, this.mission.y);
             this.ctx.rotate(this.mission.angle);
 
-            // Πυραυλική ουρά (μικρότερη & κομψή)
             if (!this.mission.waitingForLaunch && this.mission.progress < 1.0) {
                 const plumeGlow = this.ctx.createRadialGradient(-10, 0, 1, -18, 0, 8);
                 plumeGlow.addColorStop(0, '#69d2ff');
@@ -715,39 +698,32 @@ export class SolarSystem {
                 this.ctx.fill();
             }
 
-            // --- Σχεδίαση Σκάφους (Κλιμακωμένο πιο μικρό: ~30% μικρότερο) ---
-            
-            // 1. Κύριο σκαρί (Hull)
             this.ctx.fillStyle = '#b0c4de';
             this.ctx.strokeStyle = '#69d2ff';
             this.ctx.lineWidth = 1;
             this.ctx.beginPath();
-            this.ctx.moveTo(12, 0);   // Μύτη πλώρης
-            this.ctx.lineTo(4, -4);   // Αριστερό πλευρό
-            this.ctx.lineTo(-9, -2.5);// Πρύμνη αριστερά
-            this.ctx.lineTo(-12, 0);  // Κέντρο πρύμνης
-            this.ctx.lineTo(-9, 2.5); // Πρύμνη δεξιά
-            this.ctx.lineTo(4, 4);    // Δεξί πλευρό
+            this.ctx.moveTo(12, 0);   
+            this.ctx.lineTo(4, -4);   
+            this.ctx.lineTo(-9, -2.5);
+            this.ctx.lineTo(-12, 0);  
+            this.ctx.lineTo(-9, 2.5); 
+            this.ctx.lineTo(4, 4);    
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
 
-            // 2. Χρυσαφένια λεπτομέρεια καταστρώματος
             this.ctx.fillStyle = '#ffaa00';
             this.ctx.beginPath();
             this.ctx.ellipse(0, 0, 5, 1.8, 0, 0, Math.PI * 2);
             this.ctx.fill();
 
-            // 3. Φωτεινά ενεργειακά κουπία (Plasma Oars) - μικρότερα
             this.ctx.strokeStyle = '#69d2ff';
             this.ctx.lineWidth = 1.2;
             for (let o = -5; o <= 5; o += 4) {
-                // Αριστερά κουπία
                 this.ctx.beginPath();
                 this.ctx.moveTo(o, -2.5);
                 this.ctx.lineTo(o - 1, -7);
                 this.ctx.stroke();
-                // Δεξιά κουπία
                 this.ctx.beginPath();
                 this.ctx.moveTo(o, 2.5);
                 this.ctx.lineTo(o - 1, 7);

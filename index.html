@@ -12,6 +12,7 @@
     <header id="nav-header">
         <div class="logo" id="app-title">🌌 ΕΞΕΡΕΥΝΗΤΗΣ ΗΛΙΑΚΟΥ ΣΥΣΤΗΜΑΤΟΣ</div>
         <div class="header-right">
+            <button class="lang-btn" id="btnAudio" title="Ambient Space Audio">🔇 Audio</button>
             <button class="lang-btn" id="btnLang">🇬🇷 EL / EN</button>
         </div>
     </header>
@@ -87,13 +88,17 @@
         <section id="solar-view" class="view active">
             <canvas id="solarCanvas"></canvas>
             
-            <div id="sidebar">
+            <div id="sidebar" class="sidebar">
                 <button id="close-btn">✕</button>
                 <h2 id="info-name">-</h2>
-                <p><span class="label" id="lbl-desc">Περιγραφή</span><br><span id="info-desc">-</span></p>
-                <p><span class="label" id="lbl-diam">Διάμετρος</span><br><span id="info-diam">-</span></p>
-                <p><span class="label" id="lbl-temp">Θερμοκρασία</span><br><span id="info-temp">-</span></p>
-                <p><span class="label" id="lbl-moons">Δεδομένα / Φεγγάρια</span><br><span id="info-moons">-</span></p>
+                
+                <p><strong id="lbl-desc">Περιγραφή:</strong> <span id="info-desc">-</span></p>
+                <p><strong id="lbl-diam">Διάμετρος:</strong> <span id="info-diameter">-</span></p>
+                <p><strong id="lbl-temp">Θερμοκρασία:</strong> <span id="info-temp">-</span></p>
+                <p><strong id="lbl-distance">Απόσταση:</strong> <span id="info-distance">-</span></p>
+                <p><strong id="lbl-gravity">Βαρύτητα:</strong> <span id="info-gravity">-</span></p>
+                <p><strong id="lbl-period">Περίοδος Τροχιάς:</strong> <span id="info-period">-</span></p>
+                <p><strong id="lbl-funfact">Fun Fact:</strong> <span id="info-funfact">-</span></p>
             </div>
 
             <!-- Bottom Left Controls -->
