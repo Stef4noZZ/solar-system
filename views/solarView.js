@@ -1,11 +1,11 @@
 import { sunData, planets, moonsData, smallBodies, EARTH_YEAR_DAYS, translations } from '../data.js';
 
 export class SolarSystem {
-    constructor(canvasId, onBodySelectedCallback) { // 👈 Προσθήκη callback δέκτη
+    constructor(canvasId, onBodySelectedCallback) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.lang = 'el';
-        this.onBodySelected = onBodySelectedCallback; // 👈 Αποθήκευση callback
+        this.onBodySelected = onBodySelectedCallback;
 
         this.planetPhases = planets.map(() => Math.random() * Math.PI * 2);
         this.moonPhases = moonsData.map(() => Math.random() * Math.PI * 2);
@@ -13,7 +13,7 @@ export class SolarSystem {
 
         this.timeScales = [
             { label: "Real Time", daysPerSec: 1.0 / 86400 },        
-            { label: "1d / s", daysPerSec: 1.0 },                  
+            { label: "1d / s", daysPerSec: 1.0 },                 
             { label: "30d / s", daysPerSec: 30.0 },                 
             { label: "1y / s", daysPerSec: EARTH_YEAR_DAYS }        
         ];
@@ -22,6 +22,10 @@ export class SolarSystem {
         this.isPaused = false;
         this.showOrbits = true;
         this.showHabitableZone = false;
+
+        // ✨ Νέες μεταβλητές για την Πλάγια Όψη (Side View / Perspective)
+        this.viewAngle = 0;       // 0 = Κάτοψη (Top View), 1 = Πλάγια (Side View)
+        this.targetViewAngle = 0;
 
         this.zoom = 0.68;
         this.targetZoom = 0.68;
@@ -90,12 +94,16 @@ export class SolarSystem {
         this.canvas.height = window.innerHeight;
     }
 
+    // ✨ Μέθοδος εναλλαγής ανάμεσα σε Κάτοψη και Πλάγια Όψη
+    toggleViewAngle() {
+        this.targetViewAngle = this.targetViewAngle === 0 ? 1 : 0;
+    }
+
     initEvents() {
         window.addEventListener('resize', () => this.resize());
 
         let isDragging = false;
         let startX, startY, hasMoved = false;
-
         let initialPinchDist = null;
 
         const getTouchDist = (e) => {
@@ -149,11 +157,9 @@ export class SolarSystem {
             }
         }, { passive: true });
 
-        this.canvas.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-                isDragging = false;
-                initialPinchDist = null;
-            }
+        this.canvas.addEventListener('touchend', () => {
+            isDragging = false;
+            initialPinchDist = null;
         });
 
         this.canvas.addEventListener('wheel', (e) => {
@@ -165,24 +171,7 @@ export class SolarSystem {
         }, { passive: false });
 
         this.canvas.addEventListener('dblclick', (e) => {
-            const centerX = this.canvas.width / 2 + this.offsetX;
-            const centerY = this.canvas.height / 2 + this.offsetY;
-
-            if (Math.hypot(e.clientX - centerX, e.clientY - centerY) <= sunData.radius * this.zoom + 15) {
-                this.focusOnBody(sunData);
-                return;
-            }
-
-            for (let i = 0; i < planets.length; i++) {
-                const p = planets[i];
-                const px = centerX + Math.cos(this.planetPhases[i]) * p.orbit * this.zoom;
-                const py = centerY + Math.sin(this.planetPhases[i]) * p.orbit * this.zoom;
-
-                if (Math.hypot(e.clientX - px, e.clientY - py) <= Math.max(p.radius * this.zoom + 10, 20)) {
-                    this.focusOnBody(p);
-                    return;
-                }
-            }
+            this.checkClick(e.clientX, e.clientY, true);
         });
     }
 
@@ -222,13 +211,15 @@ export class SolarSystem {
             trail: []
         };
 
-        document.getElementById('mission-status-card').style.display = 'block';
+        const statusCard = document.getElementById('mission-status-card');
+        if (statusCard) statusCard.style.display = 'block';
     }
 
     abortMission() {
         this.mission.active = false;
         this.mission.waitingForLaunch = false;
-        document.getElementById('mission-status-card').style.display = 'none';
+        const statusCard = document.getElementById('mission-status-card');
+        if (statusCard) statusCard.style.display = 'none';
         if (this.focusedTarget && this.focusedTarget.type === 'argo') {
             this.focusedTarget = null;
         }
@@ -243,10 +234,13 @@ export class SolarSystem {
         return smallBodies.find(item => item.id === id);
     }
 
+    // ✨ Διορθωμένο κλικ που λαμβάνει υπόψη το scaleY της πλάγιας όψης
     checkClick(clientX, clientY, isDoubleClick) {
+        const scaleY = 1 - (this.viewAngle * 0.75);
         const centerX = this.canvas.width / 2 + this.offsetX;
         const centerY = this.canvas.height / 2 + this.offsetY;
 
+        // Έλεγχος για Ήλιο
         if (Math.hypot(clientX - centerX, clientY - centerY) <= sunData.radius * this.zoom + 10) {
             this.selectBody(sunData);
             if (isDoubleClick) {
@@ -256,16 +250,17 @@ export class SolarSystem {
             return;
         }
 
+        // Έλεγχος για Πλανήτες & Φεγγάρια
         for (let i = 0; i < planets.length; i++) {
             const p = planets[i];
             const px = centerX + Math.cos(this.planetPhases[i]) * p.orbit * this.zoom;
-            const py = centerY + Math.sin(this.planetPhases[i]) * p.orbit * this.zoom;
+            const py = centerY + Math.sin(this.planetPhases[i]) * p.orbit * this.zoom * scaleY;
 
             const planetMoons = moonsData.filter(m => m.planetId === p.id);
             for (let m of planetMoons) {
                 const mIdx = moonsData.indexOf(m);
                 const mx = px + Math.cos(this.moonPhases[mIdx]) * m.orbitDist * this.zoom;
-                const my = py + Math.sin(this.moonPhases[mIdx]) * m.orbitDist * this.zoom;
+                const my = py + Math.sin(this.moonPhases[mIdx]) * m.orbitDist * this.zoom * scaleY;
 
                 if (Math.hypot(clientX - mx, clientY - my) <= Math.max(m.radius * this.zoom + 8, 16)) {
                     this.selectBody(m);
@@ -287,10 +282,11 @@ export class SolarSystem {
             }
         }
 
+        // Έλεγχος για Μικρά Σώματα
         for (let i = 0; i < smallBodies.length; i++) {
             const sb = smallBodies[i];
             const sbx = centerX + Math.cos(this.smallBodyPhases[i]) * sb.orbit * this.zoom;
-            const sby = centerY + Math.sin(this.smallBodyPhases[i]) * sb.orbit * this.zoom;
+            const sby = centerY + Math.sin(this.smallBodyPhases[i]) * sb.orbit * this.zoom * scaleY;
 
             if (Math.hypot(clientX - sbx, clientY - sby) <= Math.max(sb.radius * this.zoom + 8, 16)) {
                 this.selectBody(sb);
@@ -334,7 +330,6 @@ export class SolarSystem {
     }
 
     selectBody(body) {
-        // Ενημέρωση sidebar μέσω callback αν υπάρχει
         if (this.onBodySelected) {
             this.onBodySelected(body);
         }
@@ -385,13 +380,17 @@ export class SolarSystem {
                 this.mission.angle = currentOriginPhase + Math.PI / 2;
 
                 const t = translations[this.lang];
-                document.getElementById('mission-stage').innerText = t.stageWait || "Αναμονή Ευθυγράμμισης...";
-                document.getElementById('mission-progress-bar').style.width = `5%`;
+                const stageElem = document.getElementById('mission-stage');
+                const progElem = document.getElementById('mission-progress-bar');
+                const daysElem = document.getElementById('mission-days');
+
+                if (stageElem) stageElem.innerText = t.stageWait || "Αναμονή Ευθυγράμμισης...";
+                if (progElem) progElem.style.width = `5%`;
                 
                 const daysText = this.lang === 'el' 
                     ? `Εκτίμηση αναμονής: ~${estDaysRemaining} ημέρες` 
                     : `Est. waiting: ~${estDaysRemaining} days`;
-                document.getElementById('mission-days').innerText = daysText;
+                if (daysElem) daysElem.innerText = daysText;
 
                 if (angleDiff < 0.05) {
                     this.mission.waitingForLaunch = false;
@@ -435,9 +434,13 @@ export class SolarSystem {
             if (this.mission.progress >= 0.95) stageText = t.stageApproach;
             if (this.mission.progress >= 1.0) stageText = t.stageArrived;
 
-            document.getElementById('mission-stage').innerText = stageText;
-            document.getElementById('mission-progress-bar').style.width = `${Math.round(this.mission.progress * 100)}%`; // 👈 Διορθωμένο (*)
-            document.getElementById('mission-days').innerText = `${Math.round(this.mission.elapsedDays)} / ${Math.round(this.mission.transferDays)} days`;
+            const stageElem = document.getElementById('mission-stage');
+            const progElem = document.getElementById('mission-progress-bar');
+            const daysElem = document.getElementById('mission-days');
+
+            if (stageElem) stageElem.innerText = stageText;
+            if (progElem) progElem.style.width = `${Math.round(this.mission.progress * 100)}%`;
+            if (daysElem) daysElem.innerText = `${Math.round(this.mission.elapsedDays)} / ${Math.round(this.mission.transferDays)} days`;
         }
     }
 
@@ -450,6 +453,9 @@ export class SolarSystem {
         this.zoom += (this.targetZoom - this.zoom) * 0.08;
         this.offsetX += (this.targetOffsetX - this.offsetX) * 0.08;
         this.offsetY += (this.targetOffsetY - this.offsetY) * 0.08;
+
+        // Ομαλή μετάβαση γωνίας θέασης (View Angle Animation)
+        this.viewAngle += (this.targetViewAngle - this.viewAngle) * 0.08;
 
         if (this.focusedTarget) {
             let tx = 0, ty = 0;
@@ -489,9 +495,12 @@ export class SolarSystem {
             this.ctx.fillRect(star.x, star.y, star.size, star.size);
         });
 
+        // Υπολογισμός συντελεστή συμπίεσης Y για την πλάγια όψη
+        const scaleY = 1 - (this.viewAngle * 0.75);
+
         this.ctx.save();
         this.ctx.translate(this.canvas.width / 2 + this.offsetX, this.canvas.height / 2 + this.offsetY);
-        this.ctx.scale(this.zoom, this.zoom);
+        this.ctx.scale(this.zoom, this.zoom * scaleY); // 👈 Εδώ γίνεται το μαγικό της πλάγιας προβολής!
         
         if (this.showHabitableZone) {
             const habGrad = this.ctx.createRadialGradient(0, 0, 145, 0, 0, 185);

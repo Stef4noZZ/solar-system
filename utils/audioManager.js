@@ -1,9 +1,9 @@
 export class SpaceAudioManager {
     constructor() {
         // Δημιουργούμε ένα standard HTML5 Audio element
-        this.audio = new Audio('planet-caravan.mp3'); 
+        this.audio = new Audio('../assets/audio/planet-caravan.mp3'); 
         this.audio.loop = true;      // Να παίζει σε επανάληψη
-        this.audio.volume = 0.2;     // Χαμηλή, διακριτική ένταση (από 0.0 έως 1.0)
+        this.audio.volume = 0.4;     // Χαμηλή, διακριτική ένταση (από 0.0 έως 1.0)
         this.isPlaying = false;
     }
 

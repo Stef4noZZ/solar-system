@@ -491,6 +491,16 @@ safeClick('btnHabitable', () => {
     updateUI();
 });
 
+safeClick('btnViewToggle', () => {
+    solarApp.toggleViewAngle();
+    const btn = document.getElementById('btnViewToggle');
+    if (btn) {
+        // Εναλλαγή κειμένου κουμπιού ανάλογα με την κατάσταση
+        const isSide = solarApp.targetViewAngle === 1;
+        btn.innerText = isSide ? "📐 View: 3D" : "📐 View: 2D";
+    }
+});
+
 safeClick('btnReset', () => {
     solarApp.targetZoom = 0.68;
     solarApp.targetOffsetX = 0;
