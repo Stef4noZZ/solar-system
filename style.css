@@ -216,7 +216,12 @@ body, html {
 /* Canvas & Views */
 .view { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
 .view.active { display: block; }
-canvas { display: block; width: 100vw; height: 100vh; }
+canvas { 
+    display: block; 
+    width: 100vw; 
+    height: 100vh; 
+    touch-action: none;
+}
 
 /* Sidebar Info (Right Panel) */
 #sidebar {
@@ -290,31 +295,53 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
 /* 📱 Mobile Responsive Adjustments */
 @media (max-width: 768px) {
     #controls {
-        bottom: 12px;
-        left: 10px;
-        right: 10px; 
-        justify-content: space-between;
+        position: fixed !important;
+        bottom: 12px !important;
+        left: 10px !important;
+        right: 10px !important; 
+        width: calc(100vw - 20px) !important;
+        box-sizing: border-box !important;
+        max-width: none !important;
         padding: 8px 10px;
-        max-height: none;        /* Αφαιρούμε το περιοριστικό max-height */
-        height: auto;            /* Προσαρμόζεται αυτόματα στο περιεχόμενο */
+        max-height: none;
+        height: auto;
+        
+        /* 🌟 Οριζόντιο swipe χωρίς να κόβεται τίποτα */
         display: flex;
-        flex-wrap: wrap;         /* Επιτρέπει στα κουμπιά να πέφτουν σε 2η γραμμή όμορφα */
+        flex-wrap: nowrap;          
+        overflow-x: auto;           
+        white-space: nowrap;        
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;      
         align-items: center;
-        gap: 6px;                /* Μικρότερο κενό για οικονομία χώρου */
+        gap: 6px; 
+        z-index: 90;
+        background: rgba(12, 22, 37, 0.92);
+        backdrop-filter: blur(8px);
     }
+    
+    #controls::-webkit-scrollbar {
+        display: none;              
+    }
+
     button.ctrl-btn { 
-        padding: 5px 10px; 
+        padding: 6px 12px; 
         font-size: 11px; 
         min-height: 32px; 
-        flex-grow: 1;
+        flex-shrink: 0 !important;            
+        flex-grow: 0 !important;
     }
+    
     .speed-group {
         padding: 1px 2px;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
     }
     .speed-display {
         font-size: 11px;
         min-width: 45px;
     }
+    
     #compare-panel {
         width: calc(100% - 80px);
         left: 10px;
@@ -323,10 +350,10 @@ button.step-btn { padding: 4px 10px; border: none; background: #2d4a70; }
         padding: 10px;
     }
     #sidebar, .floating-left-panel, #mission-status-card {
-        width: fit-content;                  /* Παίρνει μόνο το πλάτος του περιεχομένου του */
-        max-width: calc(100vw - 85px);       /* Δεν φτάνει μέχρι τέρμα δεξιά (σταματάει πριν τα vertical-nav) */
-        left: 65px;                          /* Ξεκινάει δεξιά από τα αριστερόεικονίδια/εργαλεία */
-        right: auto;                         /* Ακυρώνει τυχόν right constraints */
+        width: fit-content;                  
+        max-width: calc(100vw - 85px);       
+        left: 65px;                          
+        right: auto;                         
     }
     .logo { font-size: 13px; }
 }
